@@ -40,7 +40,7 @@ camera_config_t config;
 esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
 
 
-void camera_setup() {
+int camera_setup() {
 
     config.ledc_channel = LEDC_CHANNEL_0;
     config.ledc_timer = LEDC_TIMER_0;
@@ -67,13 +67,45 @@ void camera_setup() {
     config.jpeg_quality = 10;
     config.fb_count = 2;
 
-    sensor_t * s = esp_camera_sensor_get();
-    s->set_brightness(s, 2);     // -2 to 2
-    s->set_contrast(s, 0);       // -2 to 2
-    s->set_saturation(s, 0);     // -2 to 2
+    // Init Camera
+    esp_err_t err = 0x255;
 
+    int timeout = 3;
+    while (err != ESP_OK && timeout > 0) {
+      err = esp_camera_init(&config);
+      Serial.printf("Camera init returned 0x%x\n", err);
+      delay(500);
+      timeout--;
+    }
+
+    if (err == ESP_OK) {
+        sensor_t * s = esp_camera_sensor_get();
+        s->set_brightness(s, 1);     // -2 to 2
+        s->set_contrast(s, 0);       // -2 to 2
+        s->set_saturation(s, 0);     // -2 to 2
+        s->set_gain_ctrl(s, 1);                       // auto gain on
+        s->set_exposure_ctrl(s, 1);                   // auto exposure on
+        s->set_awb_gain(s, 1);                        // Auto White Balance enable (0 or 1)
+        s->set_brightness(s, 1);
+    }
+
+    return err;
 }
 
+
+void sleep() {
+
+    Serial.println("Sleeping!");
+
+    digitalWrite(4, LOW);
+    rtc_gpio_hold_en(GPIO_NUM_4);
+    gpio_deep_sleep_hold_en();
+
+    //esp_sleep_enable_timer_wakeup(60000000);
+    esp_sleep_enable_timer_wakeup(600000000);
+    esp_deep_sleep_start();
+    Serial.println("This will never be printed");
+}
 
 
 void setup() {
@@ -156,8 +188,6 @@ void loop() {
         return;
     }
 
-    camera_setup();
-    delay(200);
 
     rtc_gpio_hold_dis(GPIO_NUM_4);
     pinMode(4, OUTPUT);
@@ -171,16 +201,10 @@ void loop() {
 
     Serial.println("Connected!");
 
-
-    // Init Camera
-    esp_err_t err = 0x255;
-
-    timeout = 20;
-    while (err != ESP_OK && timeout > 0) {
-      err = esp_camera_init(&config);
-      Serial.printf("Camera init returned 0x%x\n", err);
-      delay(500);
-      timeout--;
+    if (camera_setup() != ESP_OK) {
+        client.stop();
+        sleep();
+        return;
     }
 
     camera_fb_t * fb = NULL;
@@ -225,17 +249,7 @@ void loop() {
       else {
         Serial.println("TCP Connection failed.");
       }
-
     }
 
-    Serial.println("Sleeping!");
-
-    digitalWrite(4, LOW);
-    rtc_gpio_hold_en(GPIO_NUM_4);
-    gpio_deep_sleep_hold_en();
-
-    //esp_sleep_enable_timer_wakeup(60000000);
-    esp_sleep_enable_timer_wakeup(600000000);
-    esp_deep_sleep_start();
-    Serial.println("This will never be printed");
+    sleep();
 }
