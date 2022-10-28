@@ -24,8 +24,11 @@ then
     echo "Version $CVERSION build successfully"
 
     echo "$CVERSION" > VERSION
-    cp "$WORKDIR/output/manifest" "$WORKDIR/../receive_photo/"
-    cp "$WORKDIR/output/firmware.bin" "$WORKDIR/../receive_photo/"
+    mkdir -p "$WORKDIR/../mr_server/firmware/"
+    cp "$WORKDIR/output/manifest" "$WORKDIR/../mr_server/firmware/"
+    cp "$WORKDIR/output/firmware.bin" "$WORKDIR/../mr_server/firmware/"
+    rm -rf "$WORKDIR/output"
+
 else
     echo "Error building firmware"
     echo "Not deploying"

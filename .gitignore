@@ -1,0 +1,8 @@
+*.jpg
+photo_readings/
+*__pycache__*
+*.bash_history
+mr_server/firmware
+*.platformio
+platformio/.vars
+platformio/VERSION

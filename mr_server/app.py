@@ -5,6 +5,10 @@ import os
 import json
 
 
+PHOTO_PATH = "photo_readings"
+FIRMWARE_PATH = "firmware"
+
+
 class PhotoReceiver():
 
     def __init__(self, app):
@@ -22,14 +26,16 @@ class PhotoReceiver():
 
             now = time.time()
             filename = f"{now}-{photo.filename}"
-            print(filename)
+            os.makedirs(PHOTO_PATH, exist_ok=True)
+            f_path = os.path.join(PHOTO_PATH, filename)
+            print(f"saving image on: {f_path}")
 
-            self.last_photo = filename
+            self.last_photo = f_path
 
-            fd = open(filename, "wb")
+            fd = open(f_path, "wb")
             fd.write(photo.stream.read())
             fd.close()
-            os.chown(filename, 1000, 1000)
+            os.chown(f_path, 1000, 1000)
 
         return "Ok"
 
@@ -54,24 +60,19 @@ class FirmwareUpdater():
 
     #@self.app.route('/fota/manifest', methods=["GET"])
     def get_manifest(self):
-        fd = open("manifest", "r")
+
+        f_path = os.path.join(FIRMWARE_PATH, "manifest")
+        fd = open(f_path, "r")
         data = fd.read()
         fd.close()
         return data
 
-        #res = {
-        #    "type": "esp32-fota-http",
-        #    "version": 4,
-        #    "host": "espcamsrv1",
-        #    "port": 8085,
-        #    "bin": "/fota/firmware"
-        #}
-        #return json.dumps(res)
-
 
     #@self.app.route('/fota/firmware', methods=["GET"])
     def get_firmware(self):
-        fd = open("firmware.bin", "rb")
+
+        f_path = os.path.join(FIRMWARE_PATH, "firmware.bin")
+        fd = open(f_path, "rb")
         res = fd.read()
         fd.close()
         return res
