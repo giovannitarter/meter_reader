@@ -85,8 +85,8 @@ int camera_setup() {
         s->set_saturation(s, 0);     // -2 to 2
         s->set_gain_ctrl(s, 1);                       // auto gain on
         s->set_exposure_ctrl(s, 1);                   // auto exposure on
-        s->set_awb_gain(s, 1);                        // Auto White Balance enable (0 or 1)
-        s->set_brightness(s, 1);
+        s->set_awb_gain(s, 0);                        // Auto White Balance enable (0 or 1)
+        s->set_aec_value(s, 1200);
     }
 
     return err;
@@ -101,8 +101,8 @@ void sleep() {
     rtc_gpio_hold_en(GPIO_NUM_4);
     gpio_deep_sleep_hold_en();
 
-    //esp_sleep_enable_timer_wakeup(60000000);
-    esp_sleep_enable_timer_wakeup(600000000);
+    //esp_sleep_enable_timer_wakeup(30 * 6e7);
+    esp_sleep_enable_timer_wakeup(1 * 6e7);
     esp_deep_sleep_start();
     Serial.println("This will never be printed");
 }
@@ -163,92 +163,90 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
 
 void loop() {
 
-  int timeout = 20;
-  WiFi.begin(STASSID, STAPSK);
+    int timeout;
+    WiFi.begin(STASSID, STAPSK);
 
-  while (WiFi.status() != WL_CONNECTED && timeout > 0) {
-    delay(500);
-    Serial.print(".");
-    timeout--;
-  }
-
-  if (WiFi.status() == WL_CONNECTED) {
-
-
-    Serial.println("");
-    Serial.println("WiFi connected");
-
-    Serial.print("Connecting to ");
-    Serial.println(host);
-
-    bool updatedNeeded = esp32FOTA.execHTTPcheck();
-    if (updatedNeeded)
-    {
-        esp32FOTA.execOTA();
-        return;
-    }
-
-
-    rtc_gpio_hold_dis(GPIO_NUM_4);
-    pinMode(4, OUTPUT);
-    digitalWrite(4, LOW);
-
-    // Use WiFiClient class to create TCP connections
-    WiFiClient client;
-
-    if (client.connect(host, port)) {
-
-
-    Serial.println("Connected!");
-
-    if (camera_setup() != ESP_OK) {
-        client.stop();
-        sleep();
-        return;
-    }
-
-    camera_fb_t * fb = NULL;
-
-    digitalWrite(4, HIGH);
-    delay(50);
-    fb = esp_camera_fb_get();
-    delay(50);
-    digitalWrite(4, LOW);
-
-    if(!fb) {
-      Serial.println("Camera capture failed");
-    }
-    else {
-
-      post_image(&client, host, fb);
-      esp_camera_fb_return(fb);
-
-      timeout = 20;
-      //wait for the server's reply to become available
-      while (!client.available() && timeout > 0)
-      {
+    timeout = millis() + 5000;
+    while (WiFi.status() != WL_CONNECTED && millis() < timeout) {
         delay(500);
-        timeout--;
-      }
-      if (client.available() > 0)
-      {
-        //read back one line from the server
-        String line = client.readStringUntil('\r');
-        Serial.println(line);
-      }
-      else
-      {
-        Serial.println("client.available() timed out ");
-      }
+        Serial.print(".");
     }
 
-        Serial.println("Closing TCP connection.");
-        client.stop();
-      }
+    if (WiFi.status() == WL_CONNECTED) {
 
-      else {
-        Serial.println("TCP Connection failed.");
-      }
+        Serial.println("");
+        Serial.println("WiFi connected");
+
+        Serial.print("Connecting to ");
+        Serial.println(host);
+
+        bool updatedNeeded = esp32FOTA.execHTTPcheck();
+        if (updatedNeeded)
+        {
+            esp32FOTA.execOTA();
+            return;
+        }
+
+        rtc_gpio_hold_dis(GPIO_NUM_4);
+        pinMode(4, OUTPUT);
+        digitalWrite(4, LOW);
+
+        // Use WiFiClient class to create TCP connections
+        WiFiClient client;
+
+        if (client.connect(host, port)) {
+
+            Serial.println("Connected!");
+
+            //FLASH should be turned on before camera_setup!
+            digitalWrite(4, HIGH);
+            delay(50);
+            if (camera_setup() != ESP_OK) {
+                client.stop();
+                sleep();
+                return;
+            }
+
+            camera_fb_t * fb = NULL;
+            fb = esp_camera_fb_get();
+            delay(50);
+            digitalWrite(4, LOW);
+
+            if(!fb) {
+                Serial.println("Camera capture failed");
+            }
+            else {
+
+                post_image(&client, host, fb);
+                esp_camera_fb_return(fb);
+
+                timeout = millis() + 5000;
+                //wait for the server's reply to become available
+
+                while (!client.available() && millis() < timeout)
+                {
+                    delay(500);
+                }
+
+                if (client.available() > 0)
+                {
+                    //read back one line from the server
+                    String line = client.readStringUntil('\r');
+                    Serial.println(line);
+                }
+                else
+                {
+                    Serial.println("client.available() timed out ");
+                }
+            }
+
+            Serial.println("Closing TCP connection.");
+            client.stop();
+        }
+
+        else {
+            Serial.println("TCP Connection failed.");
+        }
     }
 
     sleep();

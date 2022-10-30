@@ -1,12 +1,34 @@
-from flask import Flask, request, send_file, abort
+#!/usr/bin/env python3
 
-import time
+
 import os
 import json
+import io
+import datetime
+
+from PIL import Image, ImageFont, ImageDraw
+from flask import Flask, request, send_file, abort
 
 
 PHOTO_PATH = "photo_readings"
 FIRMWARE_PATH = "firmware"
+
+
+def process_image(img_data, ctime):
+
+    img = Image.open(io.BytesIO(img_data))
+    img = img.rotate(180)
+
+    font = ImageFont.truetype("DejaVuSansMono.ttf", 35)
+    width, height = img.size
+    text = str(ctime)
+    img_edit = ImageDraw.Draw(img)
+    img_edit.text((0, height-40), text, (237, 230, 211), font=font)
+
+    res = io.BytesIO()
+    img.save(res, format="PNG")
+    res = res.getvalue()
+    return res
 
 
 class PhotoReceiver():
@@ -24,16 +46,18 @@ class PhotoReceiver():
 
         if photo is not None:
 
-            now = time.time()
-            filename = f"{now}-{photo.filename}"
-            os.makedirs(PHOTO_PATH, exist_ok=True)
-            f_path = os.path.join(PHOTO_PATH, filename)
-            print(f"saving image on: {f_path}")
+            now = datetime.datetime.now()
+            img_data = photo.stream.read()
+            img_data = process_image(img_data, now)
+            filename = f"{now.isoformat()}.png"
 
+            f_path = os.path.join(PHOTO_PATH, filename)
             self.last_photo = f_path
 
+            print(f"saving image on: {f_path}")
+            os.makedirs(PHOTO_PATH, exist_ok=True)
             fd = open(f_path, "wb")
-            fd.write(photo.stream.read())
+            fd.write(img_data)
             fd.close()
             os.chown(f_path, 1000, 1000)
 
