@@ -60,6 +60,8 @@ class PhotoReceiver():
             fd.write(img_data)
             fd.close()
             os.chown(f_path, 1000, 1000)
+        else:
+            print("photo is None")
 
         return "Ok"
 
@@ -86,6 +88,8 @@ class FirmwareUpdater():
     def get_manifest(self):
 
         f_path = os.path.join(FIRMWARE_PATH, "manifest")
+        if not os.path.exists(f_path):
+            abort(404)
         fd = open(f_path, "r")
         data = fd.read()
         fd.close()
@@ -96,6 +100,8 @@ class FirmwareUpdater():
     def get_firmware(self):
 
         f_path = os.path.join(FIRMWARE_PATH, "firmware.bin")
+        if not os.path.exists(f_path):
+            abort(404)
         fd = open(f_path, "rb")
         res = fd.read()
         fd.close()

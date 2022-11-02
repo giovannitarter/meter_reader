@@ -30,11 +30,13 @@
 #define PCLK_GPIO_NUM     22
 
 
-
 const uint16_t port = SRVPORT;
 const char * host = SRVNAME; // ip or dns
+const uint8_t sleep_time = SLEEP_TIME;
+
 char tmp_url[40];
 String url("");
+char chip_id[13];
 
 camera_config_t config;
 esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
@@ -102,9 +104,21 @@ void sleep() {
     gpio_deep_sleep_hold_en();
 
     //esp_sleep_enable_timer_wakeup(30 * 6e7);
-    esp_sleep_enable_timer_wakeup(1 * 6e7);
+    esp_sleep_enable_timer_wakeup(sleep_time * 6e7);
     esp_deep_sleep_start();
     Serial.println("This will never be printed");
+}
+
+
+void get_chip_id(char * text_id, size_t len) {
+    
+    uint64_t chipid;
+    chipid = ESP.getEfuseMac();
+    snprintf(text_id, len, 
+        "%04X%08X", 
+        (uint16_t)(chipid >> 32), 
+        (uint32_t)chipid
+    );
 }
 
 
@@ -123,24 +137,36 @@ void setup() {
     Serial.printf("VERSION: %d\n", CVERSION);
     Serial.printf("manifest_url: %s\n", tmp_url);
 
-
+    get_chip_id(chip_id, 13);
+    Serial.printf("ESP32 Chip ID = %s\n\r", chip_id);
 }
 
 
 int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
 
-    String head = "--RandomNerdTutorials\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"esp32-cam.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n";
-    String tail = "\r\n--RandomNerdTutorials--\r\n";
+    String boundary = "--7F7B922A48CEF516930FEC95902F1881";
+    String head = "Content-Disposition: form-data; name=\"photo\"; filename=\"esp32-cam.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n";
+    
+    String start_bnd = String("--");
+    start_bnd.concat(boundary);
 
+    String tail = String("\r\n--");
+    tail.concat(boundary);
+    tail.concat(String("--\r\n"));
+    
     uint16_t imageLen = fb->len;
-    uint16_t extraLen = head.length() + tail.length();
+    uint16_t extraLen = start_bnd.length() + head.length() + tail.length();
     uint16_t totalLen = imageLen + extraLen;
 
     client->println("POST /sendphoto HTTP/1.1");
     client->println("Host: " + String(host));
     client->println("Content-Length: " + String(totalLen));
-    client->println("Content-Type: multipart/form-data; boundary=RandomNerdTutorials");
+    
+    client->print("Content-Type: multipart/form-data; boundary=");
+    client->println(boundary);
     client->println();
+
+    client->println(start_bnd);
     client->print(head);
 
     uint8_t *fbBuf = fb->buf;

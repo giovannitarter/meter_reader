@@ -21,6 +21,10 @@
 #define STAPSK "test_espcam_pr"
 #endif
 
+#ifndef SLEEP_TIME
+#define SLEEP_TIME 1
+#endif
+
 
 #endif
 
