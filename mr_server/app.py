@@ -42,14 +42,16 @@ class PhotoReceiver():
 
     def post_sendphoto(self):
 
+        espid = request.form.get("espid", "XXXXXXXXXXXX")
         photo = request.files.get("photo")
 
         if photo is not None:
 
-            now = datetime.datetime.now()
+            now = datetime.datetime.now().isoformat(timespec="seconds")
+
             img_data = photo.stream.read()
             img_data = process_image(img_data, now)
-            filename = f"{now.isoformat()}.png"
+            filename = f"{now}_{espid}.png"
 
             f_path = os.path.join(PHOTO_PATH, filename)
             self.last_photo = f_path

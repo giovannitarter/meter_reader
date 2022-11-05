@@ -41,6 +41,31 @@ char chip_id[13];
 camera_config_t config;
 esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
 
+TaskHandle_t Task1;
+
+void task_setup() {
+
+    xTaskCreatePinnedToCore(
+          Task1code, /* Function to implement the task */
+          "Task1", /* Name of the task */
+          1000,  /* Stack size in words */
+          NULL,  /* Task input parameter */
+          0,  /* Priority of the task */
+          &Task1,  /* Task handle. */
+          0); /* Core where the task should run */
+};
+
+
+void Task1code( void * parameter) {
+    pinMode(4, OUTPUT);
+    for(;;) {
+        digitalWrite(4, HIGH);
+        delayMicroseconds(2);
+        //digitalWrite(4, LOW);
+        //delayMicroseconds(2);
+    }
+}
+
 
 int camera_setup() {
 
@@ -88,7 +113,7 @@ int camera_setup() {
         s->set_gain_ctrl(s, 1);                       // auto gain on
         s->set_exposure_ctrl(s, 1);                   // auto exposure on
         s->set_awb_gain(s, 0);                        // Auto White Balance enable (0 or 1)
-        s->set_aec_value(s, 1200);
+        s->set_aec_value(s, 600);
     }
 
     return err;
@@ -111,12 +136,12 @@ void sleep() {
 
 
 void get_chip_id(char * text_id, size_t len) {
-    
+
     uint64_t chipid;
     chipid = ESP.getEfuseMac();
-    snprintf(text_id, len, 
-        "%04X%08X", 
-        (uint16_t)(chipid >> 32), 
+    snprintf(text_id, len,
+        "%04X%08X",
+        (uint16_t)(chipid >> 32),
         (uint32_t)chipid
     );
 }
@@ -125,6 +150,10 @@ void get_chip_id(char * text_id, size_t len) {
 void setup() {
 
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
+
+    rtc_gpio_hold_dis(GPIO_NUM_4);
+    pinMode(4, OUTPUT);
+    digitalWrite(4, LOW);
 
     snprintf(tmp_url, 40, "http://%s:%d/fota/manifest", SRVNAME, SRVPORT);
     url.concat(String(tmp_url));
@@ -146,25 +175,30 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
 
     String boundary = "--7F7B922A48CEF516930FEC95902F1881";
     String head = "Content-Disposition: form-data; name=\"photo\"; filename=\"esp32-cam.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n";
-    
-    String start_bnd = String("--");
+    String head2 = "Content-Disposition: form-data; name=\"espid\"\r\n\r\n";
+
+    String start_bnd = String("\r\n--");
     start_bnd.concat(boundary);
 
     String tail = String("\r\n--");
     tail.concat(boundary);
     tail.concat(String("--\r\n"));
-    
+
     uint16_t imageLen = fb->len;
-    uint16_t extraLen = start_bnd.length() + head.length() + tail.length();
+    uint16_t extraLen = start_bnd.length()
+        + head.length()
+        + start_bnd.length()
+        + head2.length()
+        + 12
+        + tail.length();
     uint16_t totalLen = imageLen + extraLen;
 
     client->println("POST /sendphoto HTTP/1.1");
     client->println("Host: " + String(host));
     client->println("Content-Length: " + String(totalLen));
-    
+
     client->print("Content-Type: multipart/form-data; boundary=");
     client->println(boundary);
-    client->println();
 
     client->println(start_bnd);
     client->print(head);
@@ -181,6 +215,10 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
         client->write(fbBuf, remainder);
       }
     }
+
+    client->println(start_bnd);
+    client->print(head2);
+    client->print(chip_id);
 
     client->print(tail);
     return 0;
@@ -213,9 +251,6 @@ void loop() {
             return;
         }
 
-        rtc_gpio_hold_dis(GPIO_NUM_4);
-        pinMode(4, OUTPUT);
-        digitalWrite(4, LOW);
 
         // Use WiFiClient class to create TCP connections
         WiFiClient client;
@@ -225,8 +260,12 @@ void loop() {
             Serial.println("Connected!");
 
             //FLASH should be turned on before camera_setup!
-            digitalWrite(4, HIGH);
+            //digitalWrite(4, HIGH);
+            //delay(50);
+
+            task_setup();
             delay(50);
+
             if (camera_setup() != ESP_OK) {
                 client.stop();
                 sleep();
@@ -235,7 +274,9 @@ void loop() {
 
             camera_fb_t * fb = NULL;
             fb = esp_camera_fb_get();
-            delay(50);
+            //delay(50);
+            //digitalWrite(4, LOW);
+            vTaskDelete(Task1);
             digitalWrite(4, LOW);
 
             if(!fb) {
