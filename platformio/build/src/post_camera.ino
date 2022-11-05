@@ -150,7 +150,7 @@ void get_chip_id(char * text_id, size_t len) {
 void setup() {
 
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
-
+        
     rtc_gpio_hold_dis(GPIO_NUM_4);
     pinMode(4, OUTPUT);
     digitalWrite(4, LOW);
@@ -163,11 +163,13 @@ void setup() {
     Serial.setDebugOutput(true);
     Serial.println();
 
-    Serial.printf("VERSION: %d\n", CVERSION);
-    Serial.printf("manifest_url: %s\n", tmp_url);
+    Serial.printf("VERSION: %d\r\n", CVERSION);
+    Serial.printf("manifest_url: %s\r\n", tmp_url);
 
     get_chip_id(chip_id, 13);
-    Serial.printf("ESP32 Chip ID = %s\n\r", chip_id);
+    Serial.printf("ESP32 Chip ID = %s\r\n", chip_id);
+    
+    Serial.printf("sleep_time: %d\r\n", sleep_time);
 }
 
 
@@ -176,7 +178,6 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     String boundary = "--7F7B922A48CEF516930FEC95902F1881";
     String head = "Content-Disposition: form-data; name=\"photo\"; filename=\"esp32-cam.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n";
     String head2 = "Content-Disposition: form-data; name=\"espid\"\r\n\r\n";
-
     String start_bnd = String("\r\n--");
     start_bnd.concat(boundary);
 
@@ -262,10 +263,9 @@ void loop() {
             //FLASH should be turned on before camera_setup!
             //digitalWrite(4, HIGH);
             //delay(50);
-
             task_setup();
             delay(50);
-
+            
             if (camera_setup() != ESP_OK) {
                 client.stop();
                 sleep();
