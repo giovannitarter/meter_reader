@@ -15,8 +15,8 @@ RUN pio pkg install --global --platform espressif32
 RUN pio pkg install --global --tool framework-arduinoespressif32
 RUN pio pkg install --global --tool tool-scons
 
-RUN mkdir -p "/root/build"
-VOLUME ["/root/build"]
+RUN mkdir -p "/root/project"
+VOLUME ["/root/project"]
 
 RUN mkdir -p "/output"
 VOLUME ["/output"]

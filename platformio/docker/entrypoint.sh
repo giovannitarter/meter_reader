@@ -1,5 +1,12 @@
 #!/bin/bash
 
+pushd /root/project
+
+if [ -z "$CVERSION" ];
+then
+    echo "missing CVERSION in ENV"
+    exit 1
+fi
 
 if [ -z "$STASSID" ];
 then
@@ -13,12 +20,6 @@ then
     exit 1
 fi
 
-if [ -z "$CVERSION" ];
-then
-    echo "missing CVERSION in ENV"
-    exit 1
-fi
-
 if [ -z "$SRVNAME" ];
 then
     SRVNAME="espcamsrv1"
@@ -29,13 +30,18 @@ then
     SRVPORT="8085"
 fi
 
-cd /root/build
+if [ -z "$SLEEP_TIME" ];
+then
+    SLEEP_TIME="1"
+fi
+
 export PLATFORMIO_BUILD_FLAGS=" \
 -DSTASSID=\\\"$STASSID\\\" \
 -DSTAPSK=\\\"$STAPSK\\\" \
 -DCVERSION=$CVERSION \
 -DSRVNAME=\\\"$SRVNAME\\\" \
 -DSRVPORT=$SRVPORT \
+-DSLEEP_TIME=$SLEEP_TIME \
 "
 
 platformio run

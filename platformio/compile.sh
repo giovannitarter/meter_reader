@@ -1,21 +1,31 @@
 #!/bin/bash
 
 
+WORKDIR="$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)"
+
+pushd "$WORKDIR"
+
 pushd docker
 docker build -t espcam_builder .
 popd
 
-WORKDIR="$(pwd)"
-
-
+if [ ! -e "VERSION" ];
+then
+    echo "0" > "VERSION"
+fi
 CVERSION="$(cat VERSION)"
 CVERSION="$((CVERSION + 1))"
 
-source $WORKDIR/.vars
-
 rm -rf "$WORKDIR/output"
 mkdir -p "$WORKDIR/output"
-docker run -e SRVPORT="$SRVPORT" -e SRVNAME="$SRVNAME" -e CVERSION="$CVERSION" -e STASSID="$STASSID" -e STAPSK="$STAPSK" --rm -it -v"$WORKDIR/output":/output -v"$WORKDIR/build":/root/build espcam_builder
+docker run \
+    --rm \
+    -it \
+    --env-file "$WORKDIR/.env" \
+    -e CVERSION="$CVERSION" \
+    -v"$WORKDIR/output":/output \
+    -v"$WORKDIR/project":/root/project \
+    espcam_builder
 
 
 if [ -e "$WORKDIR/output/firmware.bin" ];
@@ -27,6 +37,12 @@ then
     mkdir -p "$WORKDIR/../mr_server/firmware/"
     cp "$WORKDIR/output/manifest" "$WORKDIR/../mr_server/firmware/"
     cp "$WORKDIR/output/firmware.bin" "$WORKDIR/../mr_server/firmware/"
+    
+    echo ""
+    echo "Manifest:"
+    cat "$WORKDIR/output/manifest"
+    echo ""
+    
     rm -rf "$WORKDIR/output"
 
 else
