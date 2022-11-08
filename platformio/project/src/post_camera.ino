@@ -178,8 +178,10 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     String boundary = "--7F7B922A48CEF516930FEC95902F1881";
     String head = "Content-Disposition: form-data; name=\"photo\"; filename=\"esp32-cam.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n";
     String head2 = "Content-Disposition: form-data; name=\"espid\"\r\n\r\n";
+    
     String start_bnd = String("\r\n--");
     start_bnd.concat(boundary);
+    start_bnd.concat("\r\n");
 
     String tail = String("\r\n--");
     tail.concat(boundary);
@@ -188,7 +190,7 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     uint16_t imageLen = fb->len;
     uint16_t extraLen = start_bnd.length()
         + head.length()
-        + start_bnd.length()
+        + start_bnd.length()-2 //count starts after the first blank line
         + head2.length()
         + 12
         + tail.length();
@@ -199,9 +201,10 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     client->println("Content-Length: " + String(totalLen));
 
     client->print("Content-Type: multipart/form-data; boundary=");
-    client->println(boundary);
+    client->print(boundary);
+    client->print("\r\n");
 
-    client->println(start_bnd);
+    client->print(start_bnd);
     client->print(head);
 
     uint8_t *fbBuf = fb->buf;
@@ -217,7 +220,7 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
       }
     }
 
-    client->println(start_bnd);
+    client->print(start_bnd);
     client->print(head2);
     client->print(chip_id);
 
@@ -308,6 +311,8 @@ void loop() {
             }
 
             Serial.println("Closing TCP connection.");
+            
+            client.flush();
             client.stop();
         }
 
@@ -316,5 +321,6 @@ void loop() {
         }
     }
 
+    WiFi.disconnect();
     sleep();
 }
