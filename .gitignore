@@ -6,3 +6,4 @@ mr_server/firmware
 *.platformio
 platformio/.vars
 platformio/VERSION
+mr_server/.environ

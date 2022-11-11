@@ -9,6 +9,8 @@ import datetime
 from PIL import Image, ImageFont, ImageDraw
 from flask import Flask, request, send_file, abort
 
+import webdav3.client
+
 
 PHOTO_PATH = "photo_readings"
 FIRMWARE_PATH = "firmware"
@@ -62,6 +64,18 @@ class PhotoReceiver():
             fd.write(img_data)
             fd.close()
             os.chown(f_path, 1000, 1000)
+            os.chmod(f_path, 0o777)
+
+            try:
+                wd_client = webdav3.client.Client(wd_options)
+                wd_client.mkdir("meter_photo")
+                wd_client.upload_to(
+                    img_data,
+                    "meter_photo/{}".format(filename),
+                    )
+            except webdav3.client.WebDavException as e:
+                print("Error uploading to webdav")
+
         else:
             print("photo is None")
 
@@ -117,5 +131,13 @@ if __name__ == '__main__':
 
     fwup = FirmwareUpdater(app)
     phrec = PhotoReceiver(app)
+    env = os.environ
+
+    wd_options = {
+        'webdav_hostname': env.get("WEBDAV_HOST", ""),
+        'webdav_login': env.get("WEBDAV_USER", ""),
+        'webdav_password': env.get("WEBDAV_PASSWORD", "")
+    }
+    print(wd_options)
 
     app.run(debug=False, host="0.0.0.0", port=8085)
