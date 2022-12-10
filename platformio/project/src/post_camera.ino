@@ -7,6 +7,7 @@
 #include "driver/rtc_io.h"
 #include "WiFi.h"
 #include <esp32fota.h>
+#include <Adafruit_NeoPixel.h>
 
 #include "parameters.h"
 
@@ -41,6 +42,10 @@ char chip_id[13];
 camera_config_t config;
 esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
 
+#define LED_STRIP_EN 14
+#define LED_STRIP_COMM 2
+
+Adafruit_NeoPixel pixels(3, LED_STRIP_COMM, NEO_GRB + NEO_KHZ800);
 TaskHandle_t Task1;
 
 void task_setup() {
@@ -123,6 +128,7 @@ int camera_setup() {
 void sleep() {
 
     Serial.println("Sleeping!");
+    turn_off_light();
 
     digitalWrite(4, LOW);
     rtc_gpio_hold_en(GPIO_NUM_4);
@@ -147,6 +153,28 @@ void get_chip_id(char * text_id, size_t len) {
 }
 
 
+void turn_on_light() {
+    
+    digitalWrite(LED_STRIP_EN, LOW);
+    delay(50);
+    
+    Serial.println("Turn on Light");
+    pixels.begin();
+    pixels.setPixelColor(0, pixels.Color(10, 10, 10));
+    pixels.setPixelColor(1, pixels.Color(10, 10, 10));
+    pixels.setPixelColor(2, pixels.Color(10, 10, 10));
+    pixels.show();
+}
+
+void turn_off_light() {
+    Serial.println("Turn off Light");
+    pixels.begin();
+    pixels.clear();
+    pixels.show();
+    digitalWrite(LED_STRIP_EN, HIGH);
+}
+
+
 void setup() {
 
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
@@ -154,6 +182,9 @@ void setup() {
     rtc_gpio_hold_dis(GPIO_NUM_4);
     pinMode(4, OUTPUT);
     digitalWrite(4, LOW);
+
+    pinMode(LED_STRIP_EN, OUTPUT);
+    digitalWrite(LED_STRIP_EN, HIGH);
 
     snprintf(tmp_url, 40, "http://%s:%d/fota/manifest", SRVNAME, SRVPORT);
     url.concat(String(tmp_url));
@@ -170,6 +201,9 @@ void setup() {
     Serial.printf("ESP32 Chip ID = %s\r\n", chip_id);
     
     Serial.printf("sleep_time: %d\r\n", sleep_time);
+    
+    pixels.begin(); 
+    pixels.clear();
 }
 
 
@@ -266,8 +300,10 @@ void loop() {
             //FLASH should be turned on before camera_setup!
             //digitalWrite(4, HIGH);
             //delay(50);
-            task_setup();
-            delay(50);
+            //task_setup();
+            
+            turn_on_light();
+            //delay(10);
             
             if (camera_setup() != ESP_OK) {
                 client.stop();
@@ -279,8 +315,9 @@ void loop() {
             fb = esp_camera_fb_get();
             //delay(50);
             //digitalWrite(4, LOW);
-            vTaskDelete(Task1);
-            digitalWrite(4, LOW);
+            //vTaskDelete(Task1);
+            //digitalWrite(4, LOW);
+            turn_off_light();
 
             if(!fb) {
                 Serial.println("Camera capture failed");

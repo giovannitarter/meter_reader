@@ -73,7 +73,7 @@ class PhotoReceiver():
                     img_data,
                     "meter_photo/{}".format(filename),
                     )
-            except webdav3.client.WebDavException as e:
+            except Exception as e:
                 print("Error uploading to webdav")
 
         else:
