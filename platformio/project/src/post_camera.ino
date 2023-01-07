@@ -7,7 +7,6 @@
 #include "driver/rtc_io.h"
 #include "WiFi.h"
 #include <esp32fota.h>
-#include <Adafruit_NeoPixel.h>
 
 #include "parameters.h"
 
@@ -44,32 +43,6 @@ esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
 
 #define LED_STRIP_EN 14
 #define LED_STRIP_COMM 2
-
-Adafruit_NeoPixel pixels(3, LED_STRIP_COMM, NEO_GRB + NEO_KHZ800);
-TaskHandle_t Task1;
-
-void task_setup() {
-
-    xTaskCreatePinnedToCore(
-          Task1code, /* Function to implement the task */
-          "Task1", /* Name of the task */
-          1000,  /* Stack size in words */
-          NULL,  /* Task input parameter */
-          0,  /* Priority of the task */
-          &Task1,  /* Task handle. */
-          0); /* Core where the task should run */
-};
-
-
-void Task1code( void * parameter) {
-    pinMode(4, OUTPUT);
-    for(;;) {
-        digitalWrite(4, HIGH);
-        delayMicroseconds(2);
-        //digitalWrite(4, LOW);
-        //delayMicroseconds(2);
-    }
-}
 
 
 int camera_setup() {
@@ -131,8 +104,11 @@ void sleep() {
     turn_off_light();
 
     digitalWrite(4, LOW);
-    rtc_gpio_hold_en(GPIO_NUM_4);
-    gpio_deep_sleep_hold_en();
+    gpio_hold_en(GPIO_NUM_4);
+
+    digitalWrite(LED_STRIP_EN, HIGH);
+    gpio_hold_dis(GPIO_NUM_14);
+    //gpio_deep_sleep_hold_en();
 
     //esp_sleep_enable_timer_wakeup(30 * 6e7);
     esp_sleep_enable_timer_wakeup(sleep_time * 6e7);
@@ -154,23 +130,23 @@ void get_chip_id(char * text_id, size_t len) {
 
 
 void turn_on_light() {
-    
+
     digitalWrite(LED_STRIP_EN, LOW);
-    delay(50);
-    
-    Serial.println("Turn on Light");
-    pixels.begin();
-    pixels.setPixelColor(0, pixels.Color(10, 10, 10));
-    pixels.setPixelColor(1, pixels.Color(10, 10, 10));
-    pixels.setPixelColor(2, pixels.Color(10, 10, 10));
-    pixels.show();
+    delay(5);
+
+    //Serial.println("Turn on Light");
+    //pixels.begin();
+    //pixels.setPixelColor(0, pixels.Color(100, 100, 100));
+    //pixels.setPixelColor(1, pixels.Color(100, 100, 100));
+    //pixels.setPixelColor(2, pixels.Color(100, 100, 100));
+    //pixels.show();
+
+    //digitalWrite(4, HIGH);
+    //delay(10);
 }
 
 void turn_off_light() {
     Serial.println("Turn off Light");
-    pixels.begin();
-    pixels.clear();
-    pixels.show();
     digitalWrite(LED_STRIP_EN, HIGH);
 }
 
@@ -178,8 +154,8 @@ void turn_off_light() {
 void setup() {
 
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
-        
-    rtc_gpio_hold_dis(GPIO_NUM_4);
+
+    //rtc_gpio_hold_dis(GPIO_NUM_4);
     pinMode(4, OUTPUT);
     digitalWrite(4, LOW);
 
@@ -199,11 +175,9 @@ void setup() {
 
     get_chip_id(chip_id, 13);
     Serial.printf("ESP32 Chip ID = %s\r\n", chip_id);
-    
+
     Serial.printf("sleep_time: %d\r\n", sleep_time);
-    
-    pixels.begin(); 
-    pixels.clear();
+
 }
 
 
@@ -212,7 +186,7 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     String boundary = "--7F7B922A48CEF516930FEC95902F1881";
     String head = "Content-Disposition: form-data; name=\"photo\"; filename=\"esp32-cam.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n";
     String head2 = "Content-Disposition: form-data; name=\"espid\"\r\n\r\n";
-    
+
     String start_bnd = String("\r\n--");
     start_bnd.concat(boundary);
     start_bnd.concat("\r\n");
@@ -298,13 +272,9 @@ void loop() {
             Serial.println("Connected!");
 
             //FLASH should be turned on before camera_setup!
-            //digitalWrite(4, HIGH);
-            //delay(50);
-            //task_setup();
-            
+
             turn_on_light();
-            //delay(10);
-            
+
             if (camera_setup() != ESP_OK) {
                 client.stop();
                 sleep();
@@ -313,10 +283,6 @@ void loop() {
 
             camera_fb_t * fb = NULL;
             fb = esp_camera_fb_get();
-            //delay(50);
-            //digitalWrite(4, LOW);
-            //vTaskDelete(Task1);
-            //digitalWrite(4, LOW);
             turn_off_light();
 
             if(!fb) {
@@ -348,7 +314,7 @@ void loop() {
             }
 
             Serial.println("Closing TCP connection.");
-            
+
             client.flush();
             client.stop();
         }
