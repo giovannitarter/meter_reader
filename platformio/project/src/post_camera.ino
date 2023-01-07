@@ -107,9 +107,8 @@ void sleep() {
     digitalWrite(LED_ONBOARD, LOW);
     gpio_hold_en(LED_ONBOARD);
     
-    pinMode(LED_STRIP_EN, OUTPUT);
     digitalWrite(LED_STRIP_EN, HIGH);
-    gpio_hold_en(LED_STRIP_EN);
+    gpio_hold_dis(LED_STRIP_EN);
 
     esp_sleep_enable_timer_wakeup(sleep_time * 6e7);
     esp_deep_sleep_start();
