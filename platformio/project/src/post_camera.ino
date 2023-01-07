@@ -41,8 +41,9 @@ char chip_id[13];
 camera_config_t config;
 esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
 
-#define LED_STRIP_EN 14
-#define LED_STRIP_COMM 2
+#define LED_STRIP_EN GPIO_NUM_14
+#define LED_ONBOARD GPIO_NUM_4
+//#define LED_STRIP_COMM 2
 
 
 int camera_setup() {
@@ -103,14 +104,13 @@ void sleep() {
     Serial.println("Sleeping!");
     turn_off_light();
 
-    digitalWrite(4, LOW);
-    gpio_hold_en(GPIO_NUM_4);
-
+    digitalWrite(LED_ONBOARD, LOW);
+    gpio_hold_en(LED_ONBOARD);
+    
+    pinMode(LED_STRIP_EN, OUTPUT);
     digitalWrite(LED_STRIP_EN, HIGH);
-    gpio_hold_dis(GPIO_NUM_14);
-    //gpio_deep_sleep_hold_en();
+    gpio_hold_en(LED_STRIP_EN);
 
-    //esp_sleep_enable_timer_wakeup(30 * 6e7);
     esp_sleep_enable_timer_wakeup(sleep_time * 6e7);
     esp_deep_sleep_start();
     Serial.println("This will never be printed");
@@ -129,38 +129,42 @@ void get_chip_id(char * text_id, size_t len) {
 }
 
 
-void turn_on_light() {
-
-    digitalWrite(LED_STRIP_EN, LOW);
-    delay(5);
-
-    //Serial.println("Turn on Light");
-    //pixels.begin();
-    //pixels.setPixelColor(0, pixels.Color(100, 100, 100));
-    //pixels.setPixelColor(1, pixels.Color(100, 100, 100));
-    //pixels.setPixelColor(2, pixels.Color(100, 100, 100));
-    //pixels.show();
-
-    //digitalWrite(4, HIGH);
-    //delay(10);
+void setup_light() {
+    
+    pinMode(LED_STRIP_EN, OUTPUT);
+    digitalWrite(LED_STRIP_EN, HIGH);
+    gpio_hold_dis(LED_STRIP_EN);
+    
+    pinMode(LED_ONBOARD, OUTPUT);
+    digitalWrite(LED_ONBOARD, LOW);
+    gpio_hold_dis(LED_ONBOARD);
 }
+
+
+void turn_on_light() {
+    
+    Serial.println("Turn on Light");
+    
+    digitalWrite(LED_STRIP_EN, LOW);
+    //digitalWrite(LED_ONBOARD, HIGH);
+    
+    delay(5);
+}
+
 
 void turn_off_light() {
     Serial.println("Turn off Light");
     digitalWrite(LED_STRIP_EN, HIGH);
+    
+    //digitalWrite(LED_ONBOARD, LOW);
 }
 
 
 void setup() {
 
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
-
-    //rtc_gpio_hold_dis(GPIO_NUM_4);
-    pinMode(4, OUTPUT);
-    digitalWrite(4, LOW);
-
-    pinMode(LED_STRIP_EN, OUTPUT);
-    digitalWrite(LED_STRIP_EN, HIGH);
+    
+    setup_light();
 
     snprintf(tmp_url, 40, "http://%s:%d/fota/manifest", SRVNAME, SRVPORT);
     url.concat(String(tmp_url));
@@ -169,15 +173,19 @@ void setup() {
     Serial.begin(115200);
     Serial.setDebugOutput(true);
     Serial.println();
+    
+    Serial.printf("manifest_url: %s\r\n", tmp_url);
 
     Serial.printf("VERSION: %d\r\n", CVERSION);
+    Serial.printf("STASSID: %s\r\n", STASSID);
+    Serial.printf("STAPSK : **********\r\n", STAPSK);
+    //Serial.printf("STAPSK : %s\r\n", STAPSK);
     Serial.printf("manifest_url: %s\r\n", tmp_url);
 
     get_chip_id(chip_id, 13);
     Serial.printf("ESP32 Chip ID = %s\r\n", chip_id);
 
     Serial.printf("sleep_time: %d\r\n", sleep_time);
-
 }
 
 
@@ -238,11 +246,25 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
 
 
 void loop() {
+            
+    turn_on_light();
+            
+    if (camera_setup() != ESP_OK) {
+        Serial.println("Camera setup failed");
+    }
 
+    camera_fb_t * fb = NULL;
+    fb = esp_camera_fb_get();
+    turn_off_light();
+
+    if(!fb) {
+        Serial.println("Camera capture failed");
+    }
+ 
     int timeout;
     WiFi.begin(STASSID, STAPSK);
-
     timeout = millis() + 5000;
+
     while (WiFi.status() != WL_CONNECTED && millis() < timeout) {
         delay(500);
         Serial.print(".");
@@ -263,67 +285,45 @@ void loop() {
             return;
         }
 
-
         // Use WiFiClient class to create TCP connections
         WiFiClient client;
-
         if (client.connect(host, port)) {
 
             Serial.println("Connected!");
 
-            //FLASH should be turned on before camera_setup!
+            post_image(&client, host, fb);
+            esp_camera_fb_return(fb);
 
-            turn_on_light();
+            timeout = millis() + 5000;
+            //wait for the server's reply to become available
 
-            if (camera_setup() != ESP_OK) {
-                client.stop();
-                sleep();
-                return;
+            while (!client.available() && millis() < timeout)
+            {
+                delay(50);
             }
 
-            camera_fb_t * fb = NULL;
-            fb = esp_camera_fb_get();
-            turn_off_light();
-
-            if(!fb) {
-                Serial.println("Camera capture failed");
+            if (client.available() > 0)
+            {
+                //read back one line from the server
+                String line = client.readStringUntil('\r');
+                Serial.println(line);
             }
-            else {
-
-                post_image(&client, host, fb);
-                esp_camera_fb_return(fb);
-
-                timeout = millis() + 5000;
-                //wait for the server's reply to become available
-
-                while (!client.available() && millis() < timeout)
-                {
-                    delay(500);
-                }
-
-                if (client.available() > 0)
-                {
-                    //read back one line from the server
-                    String line = client.readStringUntil('\r');
-                    Serial.println(line);
-                }
-                else
-                {
-                    Serial.println("client.available() timed out ");
-                }
+            else
+            {
+                Serial.println("client.available() timed out ");
             }
-
+        
             Serial.println("Closing TCP connection.");
 
             client.flush();
             client.stop();
+        
         }
 
         else {
             Serial.println("TCP Connection failed.");
         }
     }
-
     WiFi.disconnect();
     sleep();
-}
+}   
