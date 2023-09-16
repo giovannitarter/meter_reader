@@ -11,6 +11,7 @@ from flask import Flask, request, send_file, abort
 
 import webdav3.client
 import requests
+import logging
 
 
 PHOTO_PATH = "./photo_readings"
@@ -61,7 +62,7 @@ class PhotoReceiver():
             f_path = os.path.join(PHOTO_PATH, filename)
             self.last_photo = f_path
 
-            print(f"saving image on: {f_path}")
+            logging.info(f"saving image on: {f_path}")
             try:
                 os.makedirs(PHOTO_PATH, exist_ok=True)
                 fd = open(f_path, "wb")
@@ -70,13 +71,13 @@ class PhotoReceiver():
                 os.chown(f_path, 1000, 1000)
                 os.chmod(f_path, 0o777)
             except Exception as e:
-                print("Error saving image")
-                print(e)
+                logging.info("Error saving image")
+                logging.info(e)
 
 
-            print(f"uploading image to webdav: {wd_options['webdav_hostname']}")
+            logging.info(f"uploading image to webdav: {cfg['webdav_hostname']}")
             try:
-                wd_client = webdav3.client.Client(wd_options)
+                wd_client = webdav3.client.Client(cfg)
                 wd_client.mkdir("meter_photo")
                 wd_client.upload_to(
                     img_data,
@@ -84,14 +85,17 @@ class PhotoReceiver():
                     )
                 wdav_success = True
             except Exception as e:
-                print("Error uploading to webdav")
-                print(e)
+                logging.info("Error uploading to webdav")
+                logging.info(e)
 
         else:
-            print("photo is None")
+            logging.error("photo is None")
+
+        logging.info(f"image upload end")
 
         if wdav_success:
-            requests.get("https://uptime.giovannitarter.com/api/push/letpWstH9n?status=up&msg=OK&ping=")
+            if cfg.get("iamalive_url") != "":
+                requests.get(cfg["iamalive_url"])
 
         return "Ok"
 
@@ -101,7 +105,7 @@ class PhotoReceiver():
         if self.last_photo is None or not os.path.exists(self.last_photo):
             abort(404)
 
-        print(f"serving {self.last_photo}")
+        logging.info(f"serving {self.last_photo}")
         return send_file(self.last_photo, mimetype='image/jpg')
 
 
@@ -141,17 +145,20 @@ class FirmwareUpdater():
 
 if __name__ == '__main__':
 
+    logging.basicConfig(level=logging.INFO)
+
     app = Flask(__name__)
 
     fwup = FirmwareUpdater(app)
     phrec = PhotoReceiver(app)
     env = os.environ
 
-    wd_options = {
+    cfg = {
         'webdav_hostname': env.get("WEBDAV_HOST", ""),
         'webdav_login': env.get("WEBDAV_USER", ""),
-        'webdav_password': env.get("WEBDAV_PASSWORD", "")
+        'webdav_password': env.get("WEBDAV_PASSWORD", ""),
+        'iamalive_url' : env.get("IAMALIVE_URL", ""),
     }
-    print(wd_options)
+    logging.info(cfg)
 
     app.run(debug=False, host="0.0.0.0", port=8085)
