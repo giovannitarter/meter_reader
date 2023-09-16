@@ -10,10 +10,12 @@ from PIL import Image, ImageFont, ImageDraw
 from flask import Flask, request, send_file, abort
 
 import webdav3.client
+import requests
 
 
-PHOTO_PATH = "photo_readings"
-FIRMWARE_PATH = "firmware"
+PHOTO_PATH = "./photo_readings"
+FIRMWARE_PATH = "./firmware"
+FONT_PATH = "DejaVuSansMono.ttf"
 
 
 def process_image(img_data, ctime):
@@ -21,7 +23,7 @@ def process_image(img_data, ctime):
     img = Image.open(io.BytesIO(img_data))
     img = img.rotate(180)
 
-    font = ImageFont.truetype("DejaVuSansMono.ttf", 35)
+    font = ImageFont.truetype(FONT_PATH, 35)
     width, height = img.size
     text = str(ctime)
     img_edit = ImageDraw.Draw(img)
@@ -44,6 +46,7 @@ class PhotoReceiver():
 
     def post_sendphoto(self):
 
+        wdav_success = False
         espid = request.form.get("espid", "XXXXXXXXXXXX")
         photo = request.files.get("photo")
 
@@ -59,25 +62,36 @@ class PhotoReceiver():
             self.last_photo = f_path
 
             print(f"saving image on: {f_path}")
-            os.makedirs(PHOTO_PATH, exist_ok=True)
-            fd = open(f_path, "wb")
-            fd.write(img_data)
-            fd.close()
-            os.chown(f_path, 1000, 1000)
-            os.chmod(f_path, 0o777)
+            try:
+                os.makedirs(PHOTO_PATH, exist_ok=True)
+                fd = open(f_path, "wb")
+                fd.write(img_data)
+                fd.close()
+                os.chown(f_path, 1000, 1000)
+                os.chmod(f_path, 0o777)
+            except Exception as e:
+                print("Error saving image")
+                print(e)
 
+
+            print(f"uploading image to webdav: {wd_options['webdav_hostname']}")
             try:
                 wd_client = webdav3.client.Client(wd_options)
                 wd_client.mkdir("meter_photo")
                 wd_client.upload_to(
                     img_data,
-                    "meter_photo/{}".format(filename),
+                    f"meter_photo/{filename}",
                     )
+                wdav_success = True
             except Exception as e:
                 print("Error uploading to webdav")
+                print(e)
 
         else:
             print("photo is None")
+
+        if wdav_success:
+            requests.get("https://uptime.giovannitarter.com/api/push/letpWstH9n?status=up&msg=OK&ping=")
 
         return "Ok"
 

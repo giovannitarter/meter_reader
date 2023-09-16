@@ -106,9 +106,9 @@ void sleep() {
 
     digitalWrite(LED_ONBOARD, LOW);
     gpio_hold_en(LED_ONBOARD);
-    
+
     digitalWrite(LED_STRIP_EN, HIGH);
-    gpio_hold_dis(LED_STRIP_EN);
+    gpio_hold_en(LED_STRIP_EN);
 
     esp_sleep_enable_timer_wakeup(sleep_time * 6e7);
     esp_deep_sleep_start();
@@ -129,11 +129,11 @@ void get_chip_id(char * text_id, size_t len) {
 
 
 void setup_light() {
-    
+
     pinMode(LED_STRIP_EN, OUTPUT);
     digitalWrite(LED_STRIP_EN, HIGH);
     gpio_hold_dis(LED_STRIP_EN);
-    
+
     pinMode(LED_ONBOARD, OUTPUT);
     digitalWrite(LED_ONBOARD, LOW);
     gpio_hold_dis(LED_ONBOARD);
@@ -141,12 +141,12 @@ void setup_light() {
 
 
 void turn_on_light() {
-    
+
     Serial.println("Turn on Light");
-    
+
     digitalWrite(LED_STRIP_EN, LOW);
     //digitalWrite(LED_ONBOARD, HIGH);
-    
+
     delay(5);
 }
 
@@ -154,7 +154,7 @@ void turn_on_light() {
 void turn_off_light() {
     Serial.println("Turn off Light");
     digitalWrite(LED_STRIP_EN, HIGH);
-    
+
     //digitalWrite(LED_ONBOARD, LOW);
 }
 
@@ -162,7 +162,7 @@ void turn_off_light() {
 void setup() {
 
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
-    
+
     setup_light();
 
     snprintf(tmp_url, 40, "http://%s:%d/fota/manifest", SRVNAME, SRVPORT);
@@ -172,7 +172,7 @@ void setup() {
     Serial.begin(115200);
     Serial.setDebugOutput(true);
     Serial.println();
-    
+
     Serial.printf("manifest_url: %s\r\n", tmp_url);
 
     Serial.printf("VERSION: %d\r\n", CVERSION);
@@ -245,9 +245,9 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
 
 
 void loop() {
-            
+
     turn_on_light();
-            
+
     if (camera_setup() != ESP_OK) {
         Serial.println("Camera setup failed");
     }
@@ -259,7 +259,7 @@ void loop() {
     if(!fb) {
         Serial.println("Camera capture failed");
     }
- 
+
     int timeout;
     WiFi.begin(STASSID, STAPSK);
     timeout = millis() + 5000;
@@ -311,12 +311,12 @@ void loop() {
             {
                 Serial.println("client.available() timed out ");
             }
-        
+
             Serial.println("Closing TCP connection.");
 
             client.flush();
             client.stop();
-        
+
         }
 
         else {
@@ -325,4 +325,4 @@ void loop() {
     }
     WiFi.disconnect();
     sleep();
-}   
+}

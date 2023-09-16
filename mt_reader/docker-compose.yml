@@ -1,0 +1,27 @@
+version: "3.7"
+services:
+
+  mt_reader:
+    image: mt_reader
+    container_name: mt_reader
+
+    build: ./mt_reader
+
+    ports:
+      - 8085:8085
+
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+
+    env_file:
+      - ./environment
+
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./photo_readings:/root/photo_readings
+      - ./firmware:/root/firmware
+
+    restart: always
+    #network_mode: host
+
+
