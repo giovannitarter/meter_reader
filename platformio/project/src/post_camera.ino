@@ -32,11 +32,11 @@
 
 const uint16_t port = SRVPORT;
 const char * host = SRVNAME; // ip or dns
-const uint8_t sleep_time = SLEEP_TIME;
 
 char tmp_url[40];
 String url("");
 char chip_id[13];
+uint32_t sleep_time = SLEEP_TIME;
 
 camera_config_t config;
 esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
@@ -99,7 +99,7 @@ int camera_setup() {
 }
 
 
-void sleep() {
+void meter_sleep(uint32_t sleep_time) {
 
     Serial.println("Sleeping!");
     turn_off_light();
@@ -110,7 +110,7 @@ void sleep() {
     digitalWrite(LED_STRIP_EN, HIGH);
     gpio_hold_en(LED_STRIP_EN);
 
-    esp_sleep_enable_timer_wakeup(sleep_time * 6e7);
+    esp_sleep_enable_timer_wakeup(sleep_time * 1e6);
     esp_deep_sleep_start();
     Serial.println("This will never be printed");
 }
@@ -246,6 +246,9 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
 
 void loop() {
 
+    uint32_t start_time = millis();
+
+
     turn_on_light();
 
     if (camera_setup() != ESP_OK) {
@@ -278,7 +281,9 @@ void loop() {
         Serial.println(host);
 
         bool updatedNeeded = esp32FOTA.execHTTPcheck();
-        if (updatedNeeded)
+        
+        //if (updatedNeeded)
+        if (false)
         {
             esp32FOTA.execOTA();
             return;
@@ -300,19 +305,59 @@ void loop() {
             {
                 delay(50);
             }
+            //delay(1000);
 
-            if (client.available() > 0)
-            {
-                //read back one line from the server
-                String line = client.readStringUntil('\r');
-                Serial.println(line);
-            }
-            else
-            {
-                Serial.println("client.available() timed out ");
-            }
+            Serial.printf("\nHttp reply (%d bytes):\n", client.available());
+            Serial.print("\n----------------------\n");
+            uint8_t tmp[51], len, line;
+            tmp[0] = 0;
+            tmp[50] = 0;
+            line = 0;
 
-            Serial.println("Closing TCP connection.");
+            while (client.available() > 0)
+            {
+                len = client.readBytesUntil('\n', tmp, 50);
+                tmp[len] = 0;
+
+                if (len > 0) { 
+                    if (len == 1 && tmp[len-1] == '\r') {
+                        break;
+                    }
+                    tmp[len-1] = 0;
+                }
+          
+                Serial.printf("\n%d - %s", line, tmp);
+                line++;
+            }
+            Serial.print("\n----------------------");
+            Serial.println("\nClosing TCP connection."); 
+
+            DynamicJsonDocument doc(1024);
+            deserializeJson(doc, client);
+
+            uint32_t time = doc["time"];
+            Serial.printf("time: %d\n", time);
+
+            //len = client.readBytesUntil('\n', tmp, 50);
+            //line++;
+            //tmp[len] = 0;
+            //tmp[len-1] = 0;
+            //Serial.printf("\n%d - %s", line, tmp);
+
+            //uint32_t time = 0;
+            //uint8_t items = 0;
+            //items = sscanf((char *)tmp, "Ok, %d", &time);
+
+            //Serial.print("\n----------------------\n");
+            //Serial.println("\nClosing TCP connection."); 
+            //Serial.printf("\nitems: %d, time: %d\n", items, time);
+
+            
+
+            //if (items == 1) {
+                sleep_time = 30 - (time % 30);
+                Serial.printf("sleep time: %d\n", sleep_time);
+            //}
 
             client.flush();
             client.stop();
@@ -323,6 +368,8 @@ void loop() {
             Serial.println("TCP Connection failed.");
         }
     }
-    WiFi.disconnect();
-    sleep();
+
+    Serial.printf("elapsed: %d\n", millis() - start_time);
+    //WiFi.disconnect();
+    meter_sleep(sleep_time);
 }

@@ -5,13 +5,20 @@ import os
 import json
 import io
 import datetime
+import time
 
 from PIL import Image, ImageFont, ImageDraw
-from flask import Flask, request, send_file, abort
+from flask import Flask, request, send_file, abort, jsonify, make_response
 
 import webdav3.client
 import requests
+
 import logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
+#logging.getLogger('httpx').setLevel(logging.ERROR)
 
 
 PHOTO_PATH = "./photo_readings"
@@ -76,17 +83,18 @@ class PhotoReceiver():
 
 
             logging.info(f"uploading image to webdav: {cfg['webdav_hostname']}")
-            try:
-                wd_client = webdav3.client.Client(cfg)
-                wd_client.mkdir("meter_photo")
-                wd_client.upload_to(
-                    img_data,
-                    f"meter_photo/{filename}",
-                    )
-                wdav_success = True
-            except Exception as e:
-                logging.info("Error uploading to webdav")
-                logging.info(e)
+            if cfg.get("webdav_hostname") != "":
+                try:
+                    wd_client = webdav3.client.Client(cfg)
+                    wd_client.mkdir("meter_photo")
+                    wd_client.upload_to(
+                        img_data,
+                        f"meter_photo/{filename}",
+                        )
+                    wdav_success = True
+                except Exception as e:
+                    logging.info("Error uploading to webdav")
+                    logging.info(e)
 
         else:
             logging.error("photo is None")
@@ -97,7 +105,14 @@ class PhotoReceiver():
             if cfg.get("iamalive_url") != "":
                 requests.get(cfg["iamalive_url"])
 
-        return "Ok"
+        ctime = str(int(time.time()))
+        res = {
+            "res" : "Ok",
+            "time" : ctime,
+        }
+        logging.info(json.dumps(res, indent=4))
+
+        return make_response(jsonify(res), 200)
 
 
     def get_lastphoto(self):
@@ -115,6 +130,12 @@ class FirmwareUpdater():
         self.app = app
         app.add_url_rule("/fota/manifest", "get_manifest", self.get_manifest, methods=["GET"])
         app.add_url_rule("/fota/firmware", "get_firmware", self.get_firmware, methods=["GET"])
+        app.add_url_rule(
+            "/firmware", 
+            "post_firmware", 
+            self.post_firmware, 
+            methods=["POST"]
+            )
         return
 
 
@@ -140,6 +161,29 @@ class FirmwareUpdater():
         res = fd.read()
         fd.close()
         return res
+
+
+    def post_firmware(self):
+
+        firmware = request.files.get("firmware")
+        manifest = request.files.get("manifest")
+
+        if firmware and manifest:
+
+            f_path = os.path.join(FIRMWARE_PATH, "firmware.bin")
+            with open(f_path, "wb") as fd:
+                fd.write(firmware)
+
+            m_path = os.path.join(FIRMWARE_PATH, "manifest")
+            with open(m_path, "wb") as fd:
+                fd.write(manifest)
+        
+        else:
+            abort(400)
+
+        return
+
+
 
 
 
