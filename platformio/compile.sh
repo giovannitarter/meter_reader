@@ -28,15 +28,18 @@ docker run \
     espcam_builder
 
 
+DEPLOY_DIR="$WORKDIR/../mt_reader/firmware"
 if [ -e "$WORKDIR/output/firmware.bin" ];
 then
 
+    echo ""
     echo "Version $CVERSION build successfully"
+    echo "$(realpath "$DEPLOY_DIR")"
 
     echo "$CVERSION" > VERSION
-    mkdir -p "$WORKDIR/../mr_server/firmware/"
-    cp "$WORKDIR/output/manifest" "$WORKDIR/../mr_server/firmware/"
-    cp "$WORKDIR/output/firmware.bin" "$WORKDIR/../mr_server/firmware/"
+    mkdir -p "$DEPLOY_DIR"
+    cp "$WORKDIR/output/manifest" "$DEPLOY_DIR"
+    cp "$WORKDIR/output/firmware.bin" "$DEPLOY_DIR"
     
     echo ""
     echo "Manifest:"

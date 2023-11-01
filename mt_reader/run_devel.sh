@@ -7,7 +7,7 @@ WORKDIR="$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)"
 pushd "$WORKDIR"
 
 pushd mt_reader
-docker build -t "$IMG_NAME" .
+docker build $@ -t "$IMG_NAME" .
 popd
 
 docker run \

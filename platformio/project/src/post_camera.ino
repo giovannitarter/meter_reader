@@ -247,8 +247,6 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
 void loop() {
 
     uint32_t start_time = millis();
-
-
     turn_on_light();
 
     if (camera_setup() != ESP_OK) {
@@ -261,6 +259,7 @@ void loop() {
 
     if(!fb) {
         Serial.println("Camera capture failed");
+        meter_sleep(10);
     }
 
     int timeout;
@@ -276,6 +275,8 @@ void loop() {
 
         Serial.println("");
         Serial.println("WiFi connected");
+
+        start_time = millis();
 
         Serial.print("Connecting to ");
         Serial.println(host);
@@ -338,27 +339,9 @@ void loop() {
             uint32_t time = doc["time"];
             Serial.printf("time: %d\n", time);
 
-            //len = client.readBytesUntil('\n', tmp, 50);
-            //line++;
-            //tmp[len] = 0;
-            //tmp[len-1] = 0;
-            //Serial.printf("\n%d - %s", line, tmp);
-
-            //uint32_t time = 0;
-            //uint8_t items = 0;
-            //items = sscanf((char *)tmp, "Ok, %d", &time);
-
-            //Serial.print("\n----------------------\n");
-            //Serial.println("\nClosing TCP connection."); 
-            //Serial.printf("\nitems: %d, time: %d\n", items, time);
-
+            sleep_time = 30 - (time % 30);
+            Serial.printf("sleep time: %d\n", sleep_time);
             
-
-            //if (items == 1) {
-                sleep_time = 30 - (time % 30);
-                Serial.printf("sleep time: %d\n", sleep_time);
-            //}
-
             client.flush();
             client.stop();
 

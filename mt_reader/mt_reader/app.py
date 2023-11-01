@@ -6,9 +6,10 @@ import json
 import io
 import datetime
 import time
+import asyncio
 
 from PIL import Image, ImageFont, ImageDraw
-from flask import Flask, request, send_file, abort, jsonify, make_response
+from quart import Quart, request, send_file, abort, jsonify, make_response
 
 import webdav3.client
 import requests
@@ -48,15 +49,26 @@ class PhotoReceiver():
     def __init__(self, app):
         self.app = app
         self.last_photo = None
+
+        photo_list = os.listdir(PHOTO_PATH)
+        photo_list.sort(reverse=True)
+
+        if photo_list:
+            last_photo_path = os.path.join(PHOTO_PATH, photo_list[0])
+            logging.info(f"last_photo_path: {last_photo_path}")
+            self.last_photo = last_photo_path
+            #with open(last_photo_path, "rb") as fd:
+            #    self.last_photo = fd.read()
+
         app.add_url_rule("/sendphoto", "sendphoto", self.post_sendphoto, methods=["POST"])
         app.add_url_rule("/lastphoto", "lastphoto", self.get_lastphoto, methods=["GET"])
         return
 
-    def post_sendphoto(self):
+    async def post_sendphoto(self):
 
         wdav_success = False
-        espid = request.form.get("espid", "XXXXXXXXXXXX")
-        photo = request.files.get("photo")
+        espid = (await request.form).get("espid", "XXXXXXXXXXXX")
+        photo = (await request.files).get("photo")
 
         if photo is not None:
 
@@ -82,14 +94,17 @@ class PhotoReceiver():
                 logging.info(e)
 
 
-            logging.info(f"uploading image to webdav: {cfg['webdav_hostname']}")
+            logging.info(
+                f"uploading image to webdav: {cfg['webdav_hostname']}"
+                )
+            wdir = cfg.get("webdav_dir")
             if cfg.get("webdav_hostname") != "":
                 try:
                     wd_client = webdav3.client.Client(cfg)
-                    wd_client.mkdir("meter_photo")
+                    wd_client.mkdir(wdir)
                     wd_client.upload_to(
                         img_data,
-                        f"meter_photo/{filename}",
+                        f"{wdir}/{filename}",
                         )
                     wdav_success = True
                 except Exception as e:
@@ -112,16 +127,16 @@ class PhotoReceiver():
         }
         logging.info(json.dumps(res, indent=4))
 
-        return make_response(jsonify(res), 200)
+        return await make_response(jsonify(res), 200)
 
 
-    def get_lastphoto(self):
+    async def get_lastphoto(self):
 
         if self.last_photo is None or not os.path.exists(self.last_photo):
             abort(404)
 
         logging.info(f"serving {self.last_photo}")
-        return send_file(self.last_photo, mimetype='image/jpg')
+        return await send_file(self.last_photo, mimetype='image/jpg')
 
 
 class FirmwareUpdater():
@@ -140,7 +155,7 @@ class FirmwareUpdater():
 
 
     #@self.app.route('/fota/manifest', methods=["GET"])
-    def get_manifest(self):
+    async def get_manifest(self):
 
         f_path = os.path.join(FIRMWARE_PATH, "manifest")
         if not os.path.exists(f_path):
@@ -152,7 +167,7 @@ class FirmwareUpdater():
 
 
     #@self.app.route('/fota/firmware', methods=["GET"])
-    def get_firmware(self):
+    async def get_firmware(self):
 
         f_path = os.path.join(FIRMWARE_PATH, "firmware.bin")
         if not os.path.exists(f_path):
@@ -163,25 +178,27 @@ class FirmwareUpdater():
         return res
 
 
-    def post_firmware(self):
+    async def post_firmware(self):
 
-        firmware = request.files.get("firmware")
-        manifest = request.files.get("manifest")
+        files = await request.files
+
+        firmware = files.get("firmware")
+        manifest = files.get("manifest")
 
         if firmware and manifest:
 
             f_path = os.path.join(FIRMWARE_PATH, "firmware.bin")
             with open(f_path, "wb") as fd:
-                fd.write(firmware)
+                fd.write(firmware.stream.read())
 
             m_path = os.path.join(FIRMWARE_PATH, "manifest")
             with open(m_path, "wb") as fd:
-                fd.write(manifest)
+                fd.write(manifest.stream.read())
         
         else:
             abort(400)
 
-        return
+        return {"res" : "Ok"}
 
 
 
@@ -191,7 +208,7 @@ if __name__ == '__main__':
 
     logging.basicConfig(level=logging.INFO)
 
-    app = Flask(__name__)
+    app = Quart(__name__)
 
     fwup = FirmwareUpdater(app)
     phrec = PhotoReceiver(app)
@@ -201,6 +218,7 @@ if __name__ == '__main__':
         'webdav_hostname': env.get("WEBDAV_HOST", ""),
         'webdav_login': env.get("WEBDAV_USER", ""),
         'webdav_password': env.get("WEBDAV_PASSWORD", ""),
+        'webdav_dir' : env.get("WEBDAV_DIR", ""),
         'iamalive_url' : env.get("IAMALIVE_URL", ""),
     }
     logging.info(cfg)
