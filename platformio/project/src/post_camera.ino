@@ -292,8 +292,7 @@ void loop() {
 
         bool updatedNeeded = esp32FOTA.execHTTPcheck();
         
-        //if (updatedNeeded)
-        if (false)
+        if (updatedNeeded)
         {
             esp32FOTA.execOTA();
             return;
