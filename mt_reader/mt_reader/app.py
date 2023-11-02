@@ -49,6 +49,7 @@ class PhotoReceiver():
     def __init__(self, app):
         self.app = app
         self.last_photo = None
+        self.queue = asyncio.Queue()
 
         photo_list = os.listdir(PHOTO_PATH)
         photo_list.sort(reverse=True)
@@ -64,17 +65,12 @@ class PhotoReceiver():
         app.add_url_rule("/lastphoto", "lastphoto", self.get_lastphoto, methods=["GET"])
         return
 
-    async def post_sendphoto(self):
+    async def manage_photo(self):
 
-        wdav_success = False
-        espid = (await request.form).get("espid", "XXXXXXXXXXXX")
-        photo = (await request.files).get("photo")
-
-        if photo is not None:
-
-            now = datetime.datetime.now().isoformat(timespec="seconds")
-
-            img_data = photo.stream.read()
+        while True:
+            
+            now, img_data, espid = await self.queue.get()
+            
             img_data = process_image(img_data, now)
             filename = f"{now}_{espid}.png"
 
@@ -97,6 +93,8 @@ class PhotoReceiver():
             logging.info(
                 f"uploading image to webdav: {cfg['webdav_hostname']}"
                 )
+            
+            wdav_success = False
             wdir = cfg.get("webdav_dir")
             if cfg.get("webdav_hostname") != "":
                 try:
@@ -111,14 +109,26 @@ class PhotoReceiver():
                     logging.info("Error uploading to webdav")
                     logging.info(e)
 
+            logging.info(f"image upload end")
+
+            if wdav_success:
+                if cfg.get("iamalive_url") != "":
+                    requests.get(cfg["iamalive_url"])
+
+            self.queue.task_done()
+
+
+    async def post_sendphoto(self):
+
+        espid = (await request.form).get("espid", "XXXXXXXXXXXX")
+        photo = (await request.files).get("photo")
+
+        if photo:
+            now = datetime.datetime.now().isoformat(timespec="seconds")
+            img_data = photo.stream.read()
+            self.queue.put_nowait((now, img_data, espid))
         else:
             logging.error("photo is None")
-
-        logging.info(f"image upload end")
-
-        if wdav_success:
-            if cfg.get("iamalive_url") != "":
-                requests.get(cfg["iamalive_url"])
 
         ctime = str(int(time.time()))
         res = {
@@ -201,9 +211,6 @@ class FirmwareUpdater():
         return {"res" : "Ok"}
 
 
-
-
-
 if __name__ == '__main__':
 
     logging.basicConfig(level=logging.INFO)
@@ -223,4 +230,7 @@ if __name__ == '__main__':
     }
     logging.info(cfg)
 
-    app.run(debug=False, host="0.0.0.0", port=8085)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.create_task(phrec.manage_photo())
+    app.run(debug=False, host="0.0.0.0", port=8085, loop=loop)
