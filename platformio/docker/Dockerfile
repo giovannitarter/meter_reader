@@ -14,6 +14,10 @@ ENV PATH=/root/.platformio/penv/bin:$PATH
 RUN pio pkg install --global --platform espressif32
 RUN pio pkg install --global --tool framework-arduinoespressif32
 RUN pio pkg install --global --tool tool-scons
+RUN pio pkg install --global --tool platformio/tool-mkspiffs
+RUN pio pkg install --global --tool tool-mklittlefs
+RUN pio pkg install --global --tool tool-mkfatfs
+
 
 RUN mkdir -p "/root/project"
 VOLUME ["/root/project"]
@@ -21,8 +25,10 @@ VOLUME ["/root/project"]
 RUN mkdir -p "/output"
 VOLUME ["/output"]
 
-COPY entrypoint.sh /
-COPY create_manifest.py /root/
-ENTRYPOINT /entrypoint.sh
+#COPY entrypoint.sh /
+#COPY create_manifest.py /root/
+#ENTRYPOINT /entrypoint.sh
 
-WORKDIR /root/build
+ENV DEPLOY_DIR="/output"
+
+WORKDIR /root/project

@@ -25,6 +25,10 @@
 #define SLEEP_TIME 1
 #endif
 
+#ifndef MAX_SLEEP_TIME
+#define MAX_SLEEP_TIME 36e8
+#endif
+
 
 #endif
 

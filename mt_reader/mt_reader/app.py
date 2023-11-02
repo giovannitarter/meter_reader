@@ -130,10 +130,13 @@ class PhotoReceiver():
         else:
             logging.error("photo is None")
 
-        ctime = str(int(time.time()))
+        ctime = int(time.time())
+        sleep_time = 30 - (ctime % 30)
+
         res = {
             "res" : "Ok",
-            "time" : ctime,
+            "ctime" : ctime,
+            "sleeptime" : sleep_time,
         }
         logging.info(json.dumps(res, indent=4))
 

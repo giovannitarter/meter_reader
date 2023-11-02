@@ -4,7 +4,8 @@ photo_readings/
 *.bash_history
 *.platformio
 platformio/.vars
-platformio/VERSION
 firmware.bin
 manifest
 .environ
+platformio/project/VERSION
+platformio/project/environment

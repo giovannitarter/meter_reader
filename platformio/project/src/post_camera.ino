@@ -32,6 +32,7 @@
 
 const uint16_t port = SRVPORT;
 const char * host = SRVNAME; // ip or dns
+const uint32_t max_sleep_time = MAX_SLEEP_TIME;
 
 char tmp_url[40];
 String url("");
@@ -44,6 +45,7 @@ esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
 #define LED_STRIP_EN GPIO_NUM_14
 #define LED_ONBOARD GPIO_NUM_4
 //#define LED_STRIP_COMM 2
+
 
 
 int camera_setup() {
@@ -99,6 +101,7 @@ int camera_setup() {
 }
 
 
+//sleep time in seconds
 void meter_sleep(uint32_t sleep_time) {
 
     Serial.println("Sleeping!");
@@ -110,7 +113,13 @@ void meter_sleep(uint32_t sleep_time) {
     digitalWrite(LED_STRIP_EN, HIGH);
     gpio_hold_en(LED_STRIP_EN);
 
-    esp_sleep_enable_timer_wakeup(sleep_time * 1e6);
+    sleep_time = sleep_time * 1e6;
+
+    if (sleep_time > max_sleep_time) {
+        sleep_time = max_sleep_time;
+    }
+
+    esp_sleep_enable_timer_wakeup(sleep_time);
     esp_deep_sleep_start();
     Serial.println("This will never be printed");
 }
@@ -161,7 +170,7 @@ void turn_off_light() {
 
 void setup() {
 
-    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
+    //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
 
     setup_light();
 
@@ -184,7 +193,7 @@ void setup() {
     get_chip_id(chip_id, 13);
     Serial.printf("ESP32 Chip ID = %s\r\n", chip_id);
 
-    Serial.printf("sleep_time: %d\r\n", sleep_time);
+    Serial.printf("max_sleep_time: %u\r\n", max_sleep_time);
 }
 
 
@@ -336,23 +345,30 @@ void loop() {
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, client);
 
-            uint32_t time = doc["time"];
-            Serial.printf("time: %d\n", time);
+            sleep_time = doc["sleeptime"] | max_sleep_time;
+            Serial.printf("sleeptime: %u\n", sleep_time);
+            Serial.printf("ctime: %u\n", doc["ctime"].as<uint32_t>());
 
-            sleep_time = 30 - (time % 30);
-            Serial.printf("sleep time: %d\n", sleep_time);
+            //ghetto optimization
+            int32_t since_boot = millis() / 1000;
+            if (since_boot > 2) {
+                sleep_time = sleep_time - since_boot;
+            }
+            
             
             client.flush();
             client.stop();
-
         }
 
         else {
             Serial.println("TCP Connection failed.");
+            sleep_time = max_sleep_time;
         }
-    }
 
-    Serial.printf("elapsed: %d\n", millis() - start_time);
+    }
+    
+    Serial.printf("elapsed since boot: %d\n", millis());
+
     //WiFi.disconnect();
     meter_sleep(sleep_time);
 }
