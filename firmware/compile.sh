@@ -5,9 +5,15 @@ WORKDIR="$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)"
 
 pushd "$WORKDIR"
 
+if [ $1 = "--no-cache" ];
+then
+    CACHE="--no-cache"
+    shift
+fi
+
+
 pushd docker
-docker build -t espcam_builder .
-#docker build --no-cache -t espcam_builder .
+docker build $CACHE -t espcam_builder .
 popd
 
 DEVICE="/dev/ttyUSB0"

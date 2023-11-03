@@ -21,7 +21,7 @@ services:
       - ./photo_readings:/root/photo_readings
       - ./firmware:/root/firmware
 
-    restart: always
+    restart: unless-stopped
     #network_mode: host
 
 

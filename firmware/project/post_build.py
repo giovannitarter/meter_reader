@@ -8,8 +8,8 @@ import shutil
 
 Import("env")
 
-print("Current CLI targets", COMMAND_LINE_TARGETS)
-print("Current Build targets", BUILD_TARGETS)
+#print("Current CLI targets", COMMAND_LINE_TARGETS)
+#print("Current Build targets", BUILD_TARGETS)
 
 
 def post_program_action(source, target, env):
@@ -44,6 +44,8 @@ def write_manifest(path):
         json.dump(manifest, fd)
 
     print(f"manifest_path: {man_path}")
+    print(json.dumps(manifest, indent=4))
+    return
 
 
 def parse_envfile():
