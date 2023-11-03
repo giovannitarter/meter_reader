@@ -65,6 +65,40 @@ class PhotoReceiver():
         app.add_url_rule("/lastphoto", "lastphoto", self.get_lastphoto, methods=["GET"])
         return
 
+
+    def wdav_upload(self, cfg, filename, img_data):
+
+        wdav_success = False
+        wdir = cfg.get("webdav_dir")
+
+        if cfg.get("webdav_hostname") != "":
+            logging.info(
+                f"uploading image to webdav: {cfg['webdav_hostname']}"
+            )
+            try:
+                wd_client = webdav3.client.Client(cfg)
+                wd_client.mkdir(wdir)
+                wd_client.upload_to(
+                    img_data,
+                    f"{wdir}/{filename}",
+                    )
+                wdav_success = True
+            except Exception as e:
+                logging.info("Error uploading to webdav")
+                logging.info(e)
+
+            logging.info(f"image upload end")
+        else:
+            logging.info("wdav upload not configured, skipping")
+
+        if cfg.get("iamalive_url") != "":
+            requests.get(cfg["iamalive_url"])
+        else:
+            logging.info("iamalive_url not configured, skipping")
+
+        return
+
+
     async def manage_photo(self):
 
         while True:
@@ -89,33 +123,11 @@ class PhotoReceiver():
                 logging.info("Error saving image")
                 logging.info(e)
 
-
-            logging.info(
-                f"uploading image to webdav: {cfg['webdav_hostname']}"
-                )
-
-            wdav_success = False
-            wdir = cfg.get("webdav_dir")
-            if cfg.get("webdav_hostname") != "":
-                try:
-                    wd_client = webdav3.client.Client(cfg)
-                    wd_client.mkdir(wdir)
-                    wd_client.upload_to(
-                        img_data,
-                        f"{wdir}/{filename}",
-                        )
-                    wdav_success = True
-                except Exception as e:
-                    logging.info("Error uploading to webdav")
-                    logging.info(e)
-
-            logging.info(f"image upload end")
-
-            if wdav_success:
-                if cfg.get("iamalive_url") != "":
-                    requests.get(cfg["iamalive_url"])
-
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, self.wdav_upload, cfg, filename, img_data)
             self.queue.task_done()
+
+            return
 
 
     async def post_sendphoto(self):
@@ -207,7 +219,10 @@ class FirmwareUpdater():
 
             m_path = os.path.join(FIRMWARE_PATH, "manifest")
             with open(m_path, "wb") as fd:
-                fd.write(manifest.stream.read())
+                manifest_data = manifest.stream.read()
+                fd.write(manifest_data)
+                manifest_data = json.loads(manifest_data.decode("utf-8"))
+                logging.info(json.dumps(manifest_data, indent=4))
 
         else:
             abort(400)
