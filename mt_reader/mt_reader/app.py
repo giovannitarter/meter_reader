@@ -231,7 +231,7 @@ if __name__ == '__main__':
         'webdav_password': env.get("WEBDAV_PASSWORD", ""),
         'webdav_dir' : env.get("WEBDAV_DIR", ""),
         'iamalive_url' : env.get("IAMALIVE_URL", ""),
-        'wakeup_period' : env.get("WAKEUP_PERIOD", 3600),
+        'wakeup_period' : int(env.get("WAKEUP_PERIOD", "3600")),
     }
     logging.info(json.dumps(cfg, indent=4))
 
