@@ -307,14 +307,16 @@ void loop() {
             post_image(&client, host, fb);
             esp_camera_fb_return(fb);
 
-            timeout = millis() + 5000;
+            timeout = millis();
             //wait for the server's reply to become available
 
-            while (!client.available() && millis() < timeout)
+            Serial.print("Waiting reply");
+            while (!client.available() && millis() < timeout + 10000)
             {
+                Serial.print(".");
                 delay(50);
             }
-            //delay(1000);
+            Serial.printf("Reply took %d\n", millis() - timeout);
 
             Serial.printf("\nHttp reply (%d bytes):\n", client.available());
             Serial.print("\n----------------------\n");

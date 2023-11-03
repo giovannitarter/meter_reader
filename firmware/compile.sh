@@ -9,6 +9,8 @@ if [ $1 = "--no-cache" ];
 then
     CACHE="--no-cache"
     shift
+else
+    CACHE=""
 fi
 
 
@@ -29,11 +31,19 @@ then
         DEVICE=""
     fi
 else 
+    DEVICE=""
     CMD="$@"
 fi
 
 #rm -rf "$WORKDIR/output"
 #mkdir -p "$WORKDIR/output"
+
+echo ""
+echo "spawning container"
+echo "$CMD"
+echo ""
+
+set -x
 
 docker run \
     --rm \

@@ -10,6 +10,11 @@ pushd mt_reader
 docker build $@ -t "$IMG_NAME" .
 popd
 
+if [ ! -e environment ];
+then
+    cp environment.sample environment
+fi
+
 docker run \
     --rm \
     -it \
