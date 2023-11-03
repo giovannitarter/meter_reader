@@ -145,7 +145,9 @@ class PhotoReceiver():
         ctime = int(time.time())
         wakeup_period = cfg["wakeup_period"]
         sleep_time = wakeup_period - (ctime % wakeup_period)
-
+        if sleep_time < 30:
+            sleep_time = sleep_time + wakeup_period
+            
         res = {
             "res" : "Ok",
             "ctime" : ctime,

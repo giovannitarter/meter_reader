@@ -43,7 +43,7 @@ def write_manifest(path):
     with open(man_path, "w") as fd:
         json.dump(manifest, fd)
 
-    print(f"manifest_path: {man_path}")
+    print(f"\nmanifest_path: {man_path}")
     print(json.dumps(manifest, indent=4))
     return
 
@@ -62,6 +62,8 @@ def parse_envfile():
             key, value = l.split("=")
             res[key] = value
 
+    print(f"\nenvironment file:")
+    print(json.dumps(res, indent=4))
     return res
 
 
