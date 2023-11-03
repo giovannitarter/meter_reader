@@ -127,7 +127,7 @@ class PhotoReceiver():
             await loop.run_in_executor(None, self.wdav_upload, cfg, filename, img_data)
             self.queue.task_done()
 
-            return
+        return
 
 
     async def post_sendphoto(self):
