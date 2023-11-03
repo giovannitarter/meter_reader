@@ -9,3 +9,4 @@ firmware.bin
 manifest
 firmware/project/VERSION
 firmware/project/environment
+mt_reader/environment

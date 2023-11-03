@@ -68,9 +68,9 @@ class PhotoReceiver():
     async def manage_photo(self):
 
         while True:
-            
+
             now, img_data, espid = await self.queue.get()
-            
+
             img_data = process_image(img_data, now)
             filename = f"{now}_{espid}.png"
 
@@ -93,7 +93,7 @@ class PhotoReceiver():
             logging.info(
                 f"uploading image to webdav: {cfg['webdav_hostname']}"
                 )
-            
+
             wdav_success = False
             wdir = cfg.get("webdav_dir")
             if cfg.get("webdav_hostname") != "":
@@ -131,7 +131,8 @@ class PhotoReceiver():
             logging.error("photo is None")
 
         ctime = int(time.time())
-        sleep_time = 30 - (ctime % 30)
+        wakeup_period = cfg["wakeup_period"]
+        sleep_time = wakeup_period - (ctime % wakeup_period)
 
         res = {
             "res" : "Ok",
@@ -159,9 +160,9 @@ class FirmwareUpdater():
         app.add_url_rule("/fota/manifest", "get_manifest", self.get_manifest, methods=["GET"])
         app.add_url_rule("/fota/firmware", "get_firmware", self.get_firmware, methods=["GET"])
         app.add_url_rule(
-            "/firmware", 
-            "post_firmware", 
-            self.post_firmware, 
+            "/firmware",
+            "post_firmware",
+            self.post_firmware,
             methods=["POST"]
             )
         return
@@ -207,7 +208,7 @@ class FirmwareUpdater():
             m_path = os.path.join(FIRMWARE_PATH, "manifest")
             with open(m_path, "wb") as fd:
                 fd.write(manifest.stream.read())
-        
+
         else:
             abort(400)
 
@@ -230,8 +231,9 @@ if __name__ == '__main__':
         'webdav_password': env.get("WEBDAV_PASSWORD", ""),
         'webdav_dir' : env.get("WEBDAV_DIR", ""),
         'iamalive_url' : env.get("IAMALIVE_URL", ""),
+        'wakeup_period' : env.get("WAKEUP_PERIOD", 3600),
     }
-    logging.info(cfg)
+    logging.info(json.dumps(cfg, indent=4))
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
