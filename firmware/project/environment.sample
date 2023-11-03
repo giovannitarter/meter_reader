@@ -1,0 +1,7 @@
+
+SRVNAME=espcamsrv1
+SRVPORT=8085
+STASSID=essid
+STAPSK=password
+SLEEP_TIME=10
+

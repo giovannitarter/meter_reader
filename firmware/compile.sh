@@ -26,8 +26,9 @@ else
     CMD="$@"
 fi
 
-rm -rf "$WORKDIR/output"
-mkdir -p "$WORKDIR/output"
+#rm -rf "$WORKDIR/output"
+#mkdir -p "$WORKDIR/output"
+
 docker run \
     --rm \
     -it \

@@ -1,6 +1,11 @@
 #!/bin/bash
 
 
+if [ ! -e "environment" ];
+then
+    cp "environment.sample" "environment"
+fi
+
 source environment
 
 if [ -e "VERSION" ];

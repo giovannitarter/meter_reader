@@ -1,4 +1,5 @@
 *.jpg
+*.png
 photo_readings/
 *__pycache__*
 *.bash_history
@@ -6,6 +7,5 @@ photo_readings/
 platformio/.vars
 firmware.bin
 manifest
-.environ
-platformio/project/VERSION
-platformio/project/environment
+firmware/project/VERSION
+firmware/project/environment
