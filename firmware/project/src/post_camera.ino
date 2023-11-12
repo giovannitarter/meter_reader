@@ -350,11 +350,12 @@ void loop() {
             Serial.printf("sleeptime: %u\n", sleep_time);
             Serial.printf("ctime: %u\n", doc["ctime"].as<uint32_t>());
 
-            //ghetto optimization
-            int32_t since_boot = millis() / 1000;
-            if (since_boot > 2) {
-                sleep_time = sleep_time - since_boot;
-            }
+            ////optimization on boottime, parked until rtc osc skew
+            ///is not corrected
+            //int32_t since_boot = millis() / 1000;
+            //if (since_boot > 2) {
+            //    sleep_time = sleep_time - since_boot;
+            //}
             
             
             client.flush();

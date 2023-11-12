@@ -51,6 +51,8 @@ class PhotoReceiver():
         self.last_photo = None
         self.queue = asyncio.Queue()
 
+        self.last_sleeptime = {}
+
         photo_list = os.listdir(PHOTO_PATH)
         photo_list.sort(reverse=True)
 
@@ -68,6 +70,7 @@ class PhotoReceiver():
 
     def wdav_upload(self, cfg, filename, img_data):
 
+        logging.info("wdav_upload")
         wdav_success = False
         wdir = cfg.get("webdav_dir")
 
@@ -95,6 +98,8 @@ class PhotoReceiver():
             requests.get(cfg["iamalive_url"])
         else:
             logging.info("iamalive_url not configured, skipping")
+
+        logging.info("\n")
 
         return
 
@@ -145,15 +150,36 @@ class PhotoReceiver():
         ctime = int(time.time())
         wakeup_period = cfg["wakeup_period"]
         sleep_time = wakeup_period - (ctime % wakeup_period)
-        if sleep_time < 30:
+
+        correction = 1.0
+        last_wakeup = self.last_sleeptime.get(espid)
+        if last_wakeup:
+            l_ctime, last_sleeptime = last_wakeup
+            real_sleeptime = ctime - l_ctime
+
+            logging.info(f"last slp: {last_sleeptime} vs real: {real_sleeptime}")
+            correction = last_sleeptime / real_sleeptime
+            logging.info(f"correction: {correction}")
+        else:
+            logging.info("first wakeup")
+
+        if sleep_time < wakeup_period * 0.05:
             sleep_time = sleep_time + wakeup_period
-            
+
+        esp_boot_time = 3
+
+        logging.info(f"sleep_time before correction: {sleep_time}")
+        sleep_time = int((sleep_time - esp_boot_time) * correction)
+        logging.info(f"sleep_time after correction: {sleep_time}")
+
         res = {
             "res" : "Ok",
             "ctime" : ctime,
             "sleeptime" : sleep_time,
         }
         logging.info(json.dumps(res, indent=4))
+
+        self.last_sleeptime[espid] = (ctime, sleep_time)
 
         return await make_response(jsonify(res), 200)
 
