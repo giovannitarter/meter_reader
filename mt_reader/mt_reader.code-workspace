@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "mt_reader"
+		},
+		{
+			"path": "../firmware"
+		}
+	],
+	"settings": {}
+}

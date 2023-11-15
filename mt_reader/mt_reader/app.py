@@ -7,6 +7,7 @@ import io
 import datetime
 import time
 import asyncio
+from tinyflux import TinyFlux, Point, TimeQuery, TagQuery
 
 from PIL import Image, ImageFont, ImageDraw
 from quart import Quart, request, send_file, abort, jsonify, make_response
@@ -25,7 +26,7 @@ logging.basicConfig(
 PHOTO_PATH = "./photo_readings"
 FIRMWARE_PATH = "./firmware"
 FONT_PATH = "DejaVuSansMono.ttf"
-
+DB_PATH = os.path.join(PHOTO_PATH, "db.csv")
 
 def process_image(img_data, ctime):
 
@@ -51,7 +52,9 @@ class PhotoReceiver():
         self.last_photo = None
         self.queue = asyncio.Queue()
 
-        self.last_sleeptime = {}
+        self.db = TinyFlux(DB_PATH)
+
+        #self.last_sleeptime = {}
 
         photo_list = os.listdir(PHOTO_PATH)
         photo_list.sort(reverse=True)
@@ -70,13 +73,12 @@ class PhotoReceiver():
 
     def wdav_upload(self, cfg, filename, img_data):
 
-        logging.info("wdav_upload")
         wdav_success = False
         wdir = cfg.get("webdav_dir")
 
         if cfg.get("webdav_hostname") != "":
             logging.info(
-                f"uploading image to webdav: {cfg['webdav_hostname']}"
+                f"wdav upload to: {cfg['webdav_hostname']}"
             )
             try:
                 wd_client = webdav3.client.Client(cfg)
@@ -151,10 +153,23 @@ class PhotoReceiver():
         wakeup_period = cfg["wakeup_period"]
         sleep_time = wakeup_period - (ctime % wakeup_period)
 
+        logging.info("before query")
+        
+        timeq = TimeQuery()
+        tagq = TagQuery()
+
+        c1 = timeq > datetime.datetime.now() - datetime.timedelta(
+            seconds=cfg["wakeup_period"]
+            )
+        c2 = tagq.espid == espid
+
+        qres = self.db.search(c1 & c2)
+
         correction = 1.0
-        last_wakeup = self.last_sleeptime.get(espid)
-        if last_wakeup:
-            l_ctime, last_sleeptime = last_wakeup
+        if qres:
+            last_sleeptime = qres[-1].fields["sltime"]
+            l_ctime = qres[-1].time.timestamp()
+            
             real_sleeptime = ctime - l_ctime
 
             logging.info(f"last slp: {last_sleeptime} vs real: {real_sleeptime}")
@@ -179,7 +194,14 @@ class PhotoReceiver():
         }
         logging.info(json.dumps(res, indent=4))
 
-        self.last_sleeptime[espid] = (ctime, sleep_time)
+        #self.last_sleeptime[espid] = (ctime, sleep_time)
+
+        p = Point(
+            time=datetime.datetime.now(),
+            tags={"espid": espid},
+            fields={"sltime": sleep_time},
+        )
+        self.db.insert(p, compact_key_prefixes=True)
 
         return await make_response(jsonify(res), 200)
 
