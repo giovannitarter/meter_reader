@@ -5,6 +5,7 @@ import os
 import json
 import io
 import datetime
+from zoneinfo import ZoneInfo
 import time
 import asyncio
 from tinyflux import TinyFlux, Point, TimeQuery, TagQuery
@@ -45,6 +46,20 @@ def process_image(img_data, ctime):
     return res
 
 
+def all_intermediate_paths(path, sep="/"):
+
+    res = []
+
+    if path:
+        comp = path.split(sep)
+        for i in range(1, len(comp)+1, 1):
+            tmp = sep.join(comp[:i])
+            res.append(tmp)
+
+    return res
+
+
+
 class PhotoReceiver():
 
     def __init__(self, app):
@@ -56,11 +71,16 @@ class PhotoReceiver():
 
         #self.last_sleeptime = {}
 
-        photo_list = os.listdir(PHOTO_PATH)
-        photo_list.sort(reverse=True)
+        photo_list = []
+        for dir_path, _, files in os.walk(PHOTO_PATH):
+            for f in files:
+                if f.endswith(".png"):
+                    photo_list.append((f, dir_path))
+
+        photo_list.sort(reverse=True, key=lambda x: x[0])
 
         if photo_list:
-            last_photo_path = os.path.join(PHOTO_PATH, photo_list[0])
+            last_photo_path = os.path.join(photo_list[0][1], photo_list[0][0])
             logging.info(f"last_photo_path: {last_photo_path}")
             self.last_photo = last_photo_path
             #with open(last_photo_path, "rb") as fd:
@@ -71,21 +91,29 @@ class PhotoReceiver():
         return
 
 
-    def wdav_upload(self, cfg, filename, img_data):
+    def wdav_upload(self, cfg, timestamp, filename, img_data):
 
         wdav_success = False
         wdir = cfg.get("webdav_dir")
 
+        subdir = f"{timestamp.year}-{timestamp.month}"
+        daydir = f"{timestamp.day}"
+        wdir = f"{wdir}/{subdir}/{daydir}"
+        wfile = f"{wdir}/{filename}"
+
         if cfg.get("webdav_hostname") != "":
             logging.info(
-                f"wdav upload to: {cfg['webdav_hostname']}"
+                    f"wdav upload to: {cfg['webdav_hostname']}{wdir}"
             )
             try:
                 wd_client = webdav3.client.Client(cfg)
-                wd_client.mkdir(wdir)
+
+                for p in all_intermediate_paths(wdir):
+                    wd_client.mkdir(p)
+
                 wd_client.upload_to(
                     img_data,
-                    f"{wdir}/{filename}",
+                    wfile,
                     )
                 wdav_success = True
             except Exception as e:
@@ -110,28 +138,34 @@ class PhotoReceiver():
 
         while True:
 
-            now, img_data, espid = await self.queue.get()
+            timestamp, img_data, espid = await self.queue.get()
 
-            img_data = process_image(img_data, now)
-            filename = f"{now}_{espid}.png"
+            text_date = timestamp.isoformat(timespec="seconds")
+            img_data = process_image(img_data, timestamp)
+            filename = f"{timestamp}_{espid}.png"
 
-            f_path = os.path.join(PHOTO_PATH, filename)
-            self.last_photo = f_path
+            subdir = f"{timestamp.year}-{timestamp.month}"
+            daydir = f"{timestamp.day}"
+
+            f_dir = os.path.join(PHOTO_PATH, subdir, daydir)
+            f_path = os.path.join(f_dir, filename)
 
             logging.info(f"saving image on: {f_path}")
             try:
-                os.makedirs(PHOTO_PATH, exist_ok=True)
+                os.makedirs(f_dir, exist_ok=True)
                 fd = open(f_path, "wb")
                 fd.write(img_data)
                 fd.close()
                 os.chown(f_path, 1000, 1000)
                 os.chmod(f_path, 0o777)
+                self.last_photo = f_path
+
             except Exception as e:
                 logging.info("Error saving image")
                 logging.info(e)
 
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, self.wdav_upload, cfg, filename, img_data)
+            await loop.run_in_executor(None, self.wdav_upload, cfg, timestamp, filename, img_data)
             self.queue.task_done()
 
         return
@@ -143,7 +177,7 @@ class PhotoReceiver():
         photo = (await request.files).get("photo")
 
         if photo:
-            now = datetime.datetime.now().isoformat(timespec="seconds")
+            now = datetime.datetime.now()
             img_data = photo.stream.read()
             self.queue.put_nowait((now, img_data, espid))
         else:
@@ -153,23 +187,36 @@ class PhotoReceiver():
         wakeup_period = cfg["wakeup_period"]
         sleep_time = wakeup_period - (ctime % wakeup_period)
 
-        logging.info("before query")
-        
+        #logging.info("before query")
+
+        time_ref = (
+                datetime.datetime.now(tz=ZoneInfo("Europe/Rome"))
+                - datetime.timedelta(seconds=(cfg["wakeup_period"] * 24))
+                )
         timeq = TimeQuery()
         tagq = TagQuery()
 
-        c1 = timeq > datetime.datetime.now() - datetime.timedelta(
-            seconds=cfg["wakeup_period"]
-            )
+        c1 = timeq > time_ref
         c2 = tagq.espid == espid
 
         qres = self.db.search(c1 & c2)
+
+        #for p in qres:
+        #    logging.info(p)
+
+        ##Test
+        ##TODO: remove
+        #db_time = -1
+        #if qres:
+        #    db_time = qres[-1].time.timestamp()
+        #mem_time = self.last_sleeptime.get(espid, (-1, -1))[0]
+        #logging.info(f"time from mem: {mem_time} vs time from db: {db_time}")
 
         correction = 1.0
         if qres:
             last_sleeptime = qres[-1].fields["sltime"]
             l_ctime = qres[-1].time.timestamp()
-            
+
             real_sleeptime = ctime - l_ctime
 
             logging.info(f"last slp: {last_sleeptime} vs real: {real_sleeptime}")
