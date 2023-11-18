@@ -96,8 +96,8 @@ class PhotoReceiver():
         wdav_success = False
         wdir = cfg.get("webdav_dir")
 
-        subdir = f"{timestamp.year}-{timestamp.month}"
-        daydir = f"{timestamp.day}"
+        subdir = f"{timestamp.year:04d}-{timestamp.month:02d}"
+        daydir = f"{timestamp.day:02d}"
         wdir = f"{wdir}/{subdir}/{daydir}"
         wfile = f"{wdir}/{filename}"
 
@@ -144,8 +144,8 @@ class PhotoReceiver():
             img_data = process_image(img_data, timestamp)
             filename = f"{timestamp}_{espid}.png"
 
-            subdir = f"{timestamp.year}-{timestamp.month}"
-            daydir = f"{timestamp.day}"
+            subdir = f"{timestamp.year:04d}-{timestamp.month:02d}"
+            daydir = f"{timestamp.day:02d}"
 
             f_dir = os.path.join(PHOTO_PATH, subdir, daydir)
             f_path = os.path.join(f_dir, filename)
@@ -200,18 +200,6 @@ class PhotoReceiver():
         c2 = tagq.espid == espid
 
         qres = self.db.search(c1 & c2)
-
-        #for p in qres:
-        #    logging.info(p)
-
-        ##Test
-        ##TODO: remove
-        #db_time = -1
-        #if qres:
-        #    db_time = qres[-1].time.timestamp()
-        #mem_time = self.last_sleeptime.get(espid, (-1, -1))[0]
-        #logging.info(f"time from mem: {mem_time} vs time from db: {db_time}")
-
         correction = 1.0
         if qres:
             last_sleeptime = qres[-1].fields["sltime"]
