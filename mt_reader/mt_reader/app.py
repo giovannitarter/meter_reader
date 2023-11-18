@@ -234,7 +234,10 @@ class PhotoReceiver():
         p = Point(
             time=datetime.datetime.now(),
             tags={"espid": espid},
-            fields={"sltime": sleep_time},
+            fields={
+                "sltime": sleep_time,
+                "correction" : correction,
+                },
         )
         self.db.insert(p, compact_key_prefixes=True)
 
