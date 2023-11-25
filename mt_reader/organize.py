@@ -5,11 +5,11 @@ import os
 import re
 import datetime
 import shutil
-import webdav3.client
+#import webdav3.client
 
 
 def create_movelist(path):
-    
+
     res = []
     matcher = re.compile("([\d\-T:]*)_([\dABCDEF]*).png")
 
@@ -21,15 +21,15 @@ def create_movelist(path):
                 date = datetime.datetime.fromisoformat(date)
 
                 dst = os.path.join(
-                    path, 
-                    f"{date.year:04d}-{date.month:02d}", 
+                    path,
+                    f"{date.year:04d}-{date.month:02d}",
                     f"{date.day:02d}",
                     f
                     )
-                
+
                 src = os.path.join(dirp, f)
                 res.append((src, dst))
-                
+
     return res
 
 

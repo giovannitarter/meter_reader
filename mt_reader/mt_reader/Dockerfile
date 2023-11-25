@@ -7,7 +7,7 @@ ADD requirements.txt /root/
 RUN pip install -r /root/requirements.txt
 RUN pip freeze > /requirements.txt
 
-ADD app.py /root/
+ADD src/* /root/
 WORKDIR /root
 ENTRYPOINT python /root/app.py
 

@@ -16,12 +16,15 @@ from quart import Quart, request, send_file, abort, jsonify, make_response
 import webdav3.client
 import requests
 
+import corrections
+
 import logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
 #logging.getLogger('httpx').setLevel(logging.ERROR)
+
 
 
 PHOTO_PATH = "./photo_readings"
@@ -141,8 +144,8 @@ class PhotoReceiver():
             timestamp, img_data, espid = await self.queue.get()
 
             text_date = timestamp.isoformat(timespec="seconds")
-            img_data = process_image(img_data, timestamp)
-            filename = f"{timestamp}_{espid}.png"
+            img_data = process_image(img_data, text_date)
+            filename = f"{text_date}_{espid}.png"
 
             subdir = f"{timestamp.year:04d}-{timestamp.month:02d}"
             daydir = f"{timestamp.day:02d}"
@@ -187,31 +190,10 @@ class PhotoReceiver():
         wakeup_period = cfg["wakeup_period"]
         sleep_time = wakeup_period - (ctime % wakeup_period)
 
-        #logging.info("before query")
-
-        time_ref = (
-                datetime.datetime.now(tz=ZoneInfo("Europe/Rome"))
-                - datetime.timedelta(seconds=(cfg["wakeup_period"] * 24))
+        correction = corrections.yesterday_correction(
+                self.db, wakeup_period, espid
                 )
-        timeq = TimeQuery()
-        tagq = TagQuery()
-
-        c1 = timeq > time_ref
-        c2 = tagq.espid == espid
-
-        qres = self.db.search(c1 & c2)
-        correction = 1.0
-        if qres:
-            last_sleeptime = qres[-1].fields["sltime"]
-            l_ctime = qres[-1].time.timestamp()
-
-            real_sleeptime = ctime - l_ctime
-
-            logging.info(f"last slp: {last_sleeptime} vs real: {real_sleeptime}")
-            correction = last_sleeptime / real_sleeptime
-            logging.info(f"correction: {correction}")
-        else:
-            logging.info("first wakeup")
+        logging.info(f"correction: {correction}")
 
         if sleep_time < wakeup_period * 0.05:
             sleep_time = sleep_time + wakeup_period
@@ -219,24 +201,23 @@ class PhotoReceiver():
         esp_boot_time = 3
 
         logging.info(f"sleep_time before correction: {sleep_time}")
-        sleep_time = int((sleep_time - esp_boot_time) * correction)
-        logging.info(f"sleep_time after correction: {sleep_time}")
+        corr_sleep_time = int((sleep_time - esp_boot_time) * correction)
+        logging.info(
+                f"sleep_time correction: {sleep_time} -> {corr_sleep_time} "
+                )
 
         res = {
-            "res" : "Ok",
-            "ctime" : ctime,
-            "sleeptime" : sleep_time,
+            "res": "Ok",
+            "ctime": ctime,
+            "sleeptime": corr_sleep_time,
         }
         logging.info(json.dumps(res, indent=4))
-
-        #self.last_sleeptime[espid] = (ctime, sleep_time)
 
         p = Point(
             time=datetime.datetime.now(),
             tags={"espid": espid},
             fields={
-                "sltime": sleep_time,
-                "correction" : correction,
+                "sltime": corr_sleep_time,
                 },
         )
         self.db.insert(p, compact_key_prefixes=True)
@@ -315,7 +296,7 @@ class FirmwareUpdater():
         else:
             abort(400)
 
-        return {"res" : "Ok"}
+        return {"res": "Ok"}
 
 
 if __name__ == '__main__':
@@ -332,9 +313,9 @@ if __name__ == '__main__':
         'webdav_hostname': env.get("WEBDAV_HOST", ""),
         'webdav_login': env.get("WEBDAV_USER", ""),
         'webdav_password': env.get("WEBDAV_PASSWORD", ""),
-        'webdav_dir' : env.get("WEBDAV_DIR", ""),
-        'iamalive_url' : env.get("IAMALIVE_URL", ""),
-        'wakeup_period' : int(env.get("WAKEUP_PERIOD", "3600")),
+        'webdav_dir': env.get("WEBDAV_DIR", ""),
+        'iamalive_url': env.get("IAMALIVE_URL", ""),
+        'wakeup_period': int(env.get("WAKEUP_PERIOD", "3600")),
     }
     logging.info(json.dumps(cfg, indent=4))
 
