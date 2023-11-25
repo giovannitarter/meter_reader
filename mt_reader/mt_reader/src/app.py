@@ -177,6 +177,7 @@ class PhotoReceiver():
     async def post_sendphoto(self):
 
         espid = (await request.form).get("espid", "XXXXXXXXXXXX")
+        temp = (await request.form).get("temp", "XXX.XX")
         photo = (await request.files).get("photo")
 
         if photo:
@@ -185,6 +186,8 @@ class PhotoReceiver():
             self.queue.put_nowait((now, img_data, espid))
         else:
             logging.error("photo is None")
+
+        logging.info(f"temp: {temp}")
 
         ctime = int(time.time())
         wakeup_period = cfg["wakeup_period"]

@@ -7,6 +7,7 @@
 #include "driver/rtc_io.h"
 #include "WiFi.h"
 #include <esp32fota.h>
+#include "dht.h"
 
 #include "parameters.h"
 
@@ -44,8 +45,11 @@ esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
 
 #define LED_STRIP_EN GPIO_NUM_14
 #define LED_ONBOARD GPIO_NUM_4
-//#define LED_STRIP_COMM 2
 
+#define DHT_POW_PIN 13
+#define DHT_DATA_PIN 12
+DHT dht(DHT_POW_PIN, DHT_DATA_PIN, SENS_DHT22);
+uint8_t temp[7];
 
 
 int camera_setup() {
@@ -152,10 +156,7 @@ void setup_light() {
 void turn_on_light() {
 
     Serial.println("Turn on Light");
-
     digitalWrite(LED_STRIP_EN, LOW);
-    //digitalWrite(LED_ONBOARD, HIGH);
-
     delay(5);
 }
 
@@ -163,8 +164,6 @@ void turn_on_light() {
 void turn_off_light() {
     Serial.println("Turn off Light");
     digitalWrite(LED_STRIP_EN, HIGH);
-
-    //digitalWrite(LED_ONBOARD, LOW);
 }
 
 
@@ -181,7 +180,7 @@ void setup() {
     Serial.begin(115200);
     Serial.setDebugOutput(true);
     Serial.println();
-
+    
     Serial.printf("manifest_url: %s\r\n", tmp_url);
 
     Serial.printf("VERSION: %d\r\n", CVERSION);
@@ -194,6 +193,7 @@ void setup() {
     Serial.printf("ESP32 Chip ID = %s\r\n", chip_id);
 
     Serial.printf("max_sleep_time: %u\r\n", max_sleep_time);
+
 }
 
 
@@ -202,6 +202,7 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     String boundary = "--7F7B922A48CEF516930FEC95902F1881";
     String head = "Content-Disposition: form-data; name=\"photo\"; filename=\"esp32-cam.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n";
     String head2 = "Content-Disposition: form-data; name=\"espid\"\r\n\r\n";
+    String head3 = "Content-Disposition: form-data; name=\"temp\"\r\n\r\n";
 
     String start_bnd = String("\r\n--");
     start_bnd.concat(boundary);
@@ -217,6 +218,9 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
         + start_bnd.length()-2 //count starts after the first blank line
         + head2.length()
         + 12
+        + start_bnd.length()
+        + head3.length()
+        + 7
         + tail.length();
     uint16_t totalLen = imageLen + extraLen;
 
@@ -247,6 +251,10 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     client->print(start_bnd);
     client->print(head2);
     client->print(chip_id);
+    
+    client->print(start_bnd);
+    client->print(head3);
+    client->write(temp, 7);
 
     client->print(tail);
     return 0;
@@ -271,6 +279,8 @@ void loop() {
         meter_sleep(10);
     }
 
+    dht.begin();
+
     int timeout;
     WiFi.begin(STASSID, STAPSK);
     timeout = millis() + 5000;
@@ -279,6 +289,11 @@ void loop() {
         delay(500);
         Serial.print(".");
     }
+    
+    dht.read_dht();
+    snprintf((char *)temp, 7, "%d.%d", dht.temp, dht.temp_dec);
+    Serial.printf("temp: %s\n", temp);
+    dht.end();
 
     if (WiFi.status() == WL_CONNECTED) {
 
