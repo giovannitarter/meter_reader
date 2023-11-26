@@ -176,6 +176,8 @@ class PhotoReceiver():
 
     async def post_sendphoto(self):
 
+        logging.info("post_sendphoto")
+
         espid = (await request.form).get("espid", "XXXXXXXXXXXX")
         temp = (await request.form).get("temp", "XXX.XX")
         photo = (await request.files).get("photo")
@@ -187,7 +189,6 @@ class PhotoReceiver():
         else:
             logging.error("photo is None")
 
-        logging.info(f"temp: {temp}")
 
         ctime = int(time.time())
         wakeup_period = cfg["wakeup_period"]
@@ -215,6 +216,7 @@ class PhotoReceiver():
             "sleeptime": corr_sleep_time,
         }
         logging.info(json.dumps(res, indent=4))
+        logging.info(f"temp: {temp}")
 
         p = Point(
             time=datetime.datetime.now(),

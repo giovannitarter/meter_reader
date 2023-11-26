@@ -11,5 +11,6 @@ ADD src/* /root/
 WORKDIR /root
 ENTRYPOINT python /root/app.py
 
-VOLUME /root/photo_readings
-VOLUME /root/firmware
+#VOLUME /root/photo_readings
+#VOLUME /root/firmware
+
