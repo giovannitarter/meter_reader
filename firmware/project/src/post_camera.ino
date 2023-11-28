@@ -213,6 +213,8 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     tail.concat(String("--\r\n"));
 
     uint16_t imageLen = fb->len;
+    uint16_t temp_len = strnlen((char *)temp, 7);
+    
     uint16_t extraLen = start_bnd.length()
         + head.length()
         + start_bnd.length()-2 //count starts after the first blank line
@@ -220,7 +222,7 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
         + 12
         + start_bnd.length()
         + head3.length()
-        + 7
+        + temp_len
         + tail.length();
     uint16_t totalLen = imageLen + extraLen;
 
@@ -254,7 +256,7 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     
     client->print(start_bnd);
     client->print(head3);
-    client->write(temp, 7);
+    client->write(temp, temp_len);
 
     client->print(tail);
     return 0;
