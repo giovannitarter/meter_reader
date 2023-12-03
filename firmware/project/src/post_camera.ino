@@ -191,27 +191,27 @@ void decode_wakeup_reason(esp_sleep_wakeup_cause_t wakeup_reason){
     switch(wakeup_reason) {
 
       case ESP_SLEEP_WAKEUP_EXT0:
-        strncpy((char *)wk_reason_par, "ESP_SLEEP_WAKEUP_EXT0", WK_REASON_LEN);
+        strncpy((char *)wk_reason_par, "EXT0", WK_REASON_LEN);
         break;
 
       case ESP_SLEEP_WAKEUP_EXT1:
-        strncpy((char *)wk_reason_par, "ESP_SLEEP_WAKEUP_EXT1", WK_REASON_LEN);
+        strncpy((char *)wk_reason_par, "EXT1", WK_REASON_LEN);
         break;
 
       case ESP_SLEEP_WAKEUP_TIMER:
-        strncpy((char *)wk_reason_par, "ESP_SLEEP_WAKEUP_TIMER", WK_REASON_LEN);
+        strncpy((char *)wk_reason_par, "TIMER", WK_REASON_LEN);
         break;
 
       case ESP_SLEEP_WAKEUP_TOUCHPAD:
-        strncpy((char *)wk_reason_par, "ESP_SLEEP_WAKEUP_TOUCHPAD", WK_REASON_LEN);
+        strncpy((char *)wk_reason_par, "TOUCHPAD", WK_REASON_LEN);
         break;
 
       case ESP_SLEEP_WAKEUP_ULP:
-        strncpy((char *)wk_reason_par, "ESP_SLEEP_WAKEUP_ULP", WK_REASON_LEN);
+        strncpy((char *)wk_reason_par, "ULP", WK_REASON_LEN);
         break;
 
       default:
-        strncpy((char *)wk_reason_par, "ESP_SLEEP_OTHER", WK_REASON_LEN);
+        strncpy((char *)wk_reason_par, "UNDEFINED", WK_REASON_LEN);
         break;
     }
 }
