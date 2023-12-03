@@ -179,7 +179,14 @@ class PhotoReceiver():
         logging.info("post_sendphoto")
 
         espid = (await request.form).get("espid", "XXXXXXXXXXXX")
+        espid = espid.strip()
+
         temp = (await request.form).get("temp", "XXX.XX")
+        temp = temp.strip().strip('\x00')
+
+        wkreason = (await request.form).get("wkreason", "")
+        wkreason = wkreason.strip().strip('\x00')
+
         photo = (await request.files).get("photo")
 
         if photo:
@@ -188,7 +195,6 @@ class PhotoReceiver():
             self.queue.put_nowait((now, img_data, espid))
         else:
             logging.error("photo is None")
-
 
         ctime = int(time.time())
         wakeup_period = cfg["wakeup_period"]
@@ -216,13 +222,23 @@ class PhotoReceiver():
             "sleeptime": corr_sleep_time,
         }
         logging.info(json.dumps(res, indent=4))
+
+        try:
+            temp = float(temp)
+        except ValueError:
+            temp = float('nan')
+
         logging.info(f"temp: {temp}")
 
         p = Point(
             time=datetime.datetime.now(),
-            tags={"espid": espid},
+            tags={
+                "espid": espid,
+                "wkreason": wkreason,
+                },
             fields={
                 "sltime": corr_sleep_time,
+                "temp": temp,
                 },
         )
         self.db.insert(p, compact_key_prefixes=True)

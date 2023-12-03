@@ -5,7 +5,7 @@ WORKDIR="$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)"
 
 pushd "$WORKDIR"
 
-if [ $1 = "--no-cache" ];
+if [ "$1" = "--no-cache" ];
 then
     CACHE="--no-cache"
     shift

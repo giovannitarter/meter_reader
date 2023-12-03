@@ -8,7 +8,14 @@ pushd "$WORKDIR"
 
 pushd mt_reader
 docker build $@ -t "$IMG_NAME" .
+RES_BUILD="$?"
 popd
+
+if [ $RES_BUILD != 0 ];
+then
+    echo "Image build error"
+    exit 1
+fi 
 
 if [ ! -e environment ];
 then

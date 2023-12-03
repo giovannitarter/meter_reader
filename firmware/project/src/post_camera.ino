@@ -1,4 +1,5 @@
 #include "esp_camera.h"
+#include "SPIFFS.h"
 #include "Arduino.h"
 #include "FS.h"                // SD Card ESP32
 #include "SD_MMC.h"            // SD Card ESP32
@@ -31,16 +32,27 @@
 #define PCLK_GPIO_NUM     22
 
 
+esp_sleep_wakeup_cause_t wakeup_reason;
+
 const uint16_t port = SRVPORT;
 const char * host = SRVNAME; // ip or dns
 const uint32_t max_sleep_time = MAX_SLEEP_TIME;
+
+struct esp_config {
+    uint16_t port;
+    uint8_t srvname[20];
+    uint8_t stassid[20];
+    uint8_t stapsk[20];
+    uint32_t max_sleep_time;
+};
+typedef struct esp_config esp_config;
 
 char tmp_url[40];
 String url("");
 char chip_id[13];
 uint32_t sleep_time = SLEEP_TIME;
 
-camera_config_t config;
+camera_config_t espcam_config;
 esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
 
 #define LED_STRIP_EN GPIO_NUM_14
@@ -49,42 +61,49 @@ esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
 #define DHT_POW_PIN 13
 #define DHT_DATA_PIN 12
 DHT dht(DHT_POW_PIN, DHT_DATA_PIN, SENS_DHT22);
-uint8_t temp[7];
+
+#define TEMP_LEN 7
+uint8_t temp[TEMP_LEN];
+
+#define WK_REASON_LEN 20
+uint8_t wk_reason_par[WK_REASON_LEN];
+            
+DynamicJsonDocument doc(1024);
 
 
-int camera_setup() {
+esp_err_t camera_setup() {
 
-    config.ledc_channel = LEDC_CHANNEL_0;
-    config.ledc_timer = LEDC_TIMER_0;
-    config.pin_d0 = Y2_GPIO_NUM;
-    config.pin_d1 = Y3_GPIO_NUM;
-    config.pin_d2 = Y4_GPIO_NUM;
-    config.pin_d3 = Y5_GPIO_NUM;
-    config.pin_d4 = Y6_GPIO_NUM;
-    config.pin_d5 = Y7_GPIO_NUM;
-    config.pin_d6 = Y8_GPIO_NUM;
-    config.pin_d7 = Y9_GPIO_NUM;
-    config.pin_xclk = XCLK_GPIO_NUM;
-    config.pin_pclk = PCLK_GPIO_NUM;
-    config.pin_vsync = VSYNC_GPIO_NUM;
-    config.pin_href = HREF_GPIO_NUM;
-    config.pin_sscb_sda = SIOD_GPIO_NUM;
-    config.pin_sscb_scl = SIOC_GPIO_NUM;
-    config.pin_pwdn = PWDN_GPIO_NUM;
-    config.pin_reset = RESET_GPIO_NUM;
-    config.xclk_freq_hz = 20000000;
-    config.pixel_format = PIXFORMAT_JPEG;
+    espcam_config.ledc_channel = LEDC_CHANNEL_0;
+    espcam_config.ledc_timer = LEDC_TIMER_0;
+    espcam_config.pin_d0 = Y2_GPIO_NUM;
+    espcam_config.pin_d1 = Y3_GPIO_NUM;
+    espcam_config.pin_d2 = Y4_GPIO_NUM;
+    espcam_config.pin_d3 = Y5_GPIO_NUM;
+    espcam_config.pin_d4 = Y6_GPIO_NUM;
+    espcam_config.pin_d5 = Y7_GPIO_NUM;
+    espcam_config.pin_d6 = Y8_GPIO_NUM;
+    espcam_config.pin_d7 = Y9_GPIO_NUM;
+    espcam_config.pin_xclk = XCLK_GPIO_NUM;
+    espcam_config.pin_pclk = PCLK_GPIO_NUM;
+    espcam_config.pin_vsync = VSYNC_GPIO_NUM;
+    espcam_config.pin_href = HREF_GPIO_NUM;
+    espcam_config.pin_sscb_sda = SIOD_GPIO_NUM;
+    espcam_config.pin_sscb_scl = SIOC_GPIO_NUM;
+    espcam_config.pin_pwdn = PWDN_GPIO_NUM;
+    espcam_config.pin_reset = RESET_GPIO_NUM;
+    espcam_config.xclk_freq_hz = 20000000;
+    espcam_config.pixel_format = PIXFORMAT_JPEG;
 
-    config.frame_size = FRAMESIZE_VGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
-    config.jpeg_quality = 10;
-    config.fb_count = 2;
+    espcam_config.frame_size = FRAMESIZE_VGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
+    espcam_config.jpeg_quality = 10;
+    espcam_config.fb_count = 2;
 
     // Init Camera
     esp_err_t err = 0x255;
 
     int timeout = 3;
     while (err != ESP_OK && timeout > 0) {
-      err = esp_camera_init(&config);
+      err = esp_camera_init(&espcam_config);
       Serial.printf("Camera init returned 0x%x\n", err);
       delay(500);
       timeout--;
@@ -167,11 +186,78 @@ void turn_off_light() {
 }
 
 
+void decode_wakeup_reason(esp_sleep_wakeup_cause_t wakeup_reason){
+
+    switch(wakeup_reason) {
+
+      case ESP_SLEEP_WAKEUP_EXT0:
+        strncpy((char *)wk_reason_par, "ESP_SLEEP_WAKEUP_EXT0", WK_REASON_LEN);
+        break;
+
+      case ESP_SLEEP_WAKEUP_EXT1:
+        strncpy((char *)wk_reason_par, "ESP_SLEEP_WAKEUP_EXT1", WK_REASON_LEN);
+        break;
+
+      case ESP_SLEEP_WAKEUP_TIMER:
+        strncpy((char *)wk_reason_par, "ESP_SLEEP_WAKEUP_TIMER", WK_REASON_LEN);
+        break;
+
+      case ESP_SLEEP_WAKEUP_TOUCHPAD:
+        strncpy((char *)wk_reason_par, "ESP_SLEEP_WAKEUP_TOUCHPAD", WK_REASON_LEN);
+        break;
+
+      case ESP_SLEEP_WAKEUP_ULP:
+        strncpy((char *)wk_reason_par, "ESP_SLEEP_WAKEUP_ULP", WK_REASON_LEN);
+        break;
+
+      default:
+        strncpy((char *)wk_reason_par, "ESP_SLEEP_OTHER", WK_REASON_LEN);
+        break;
+    }
+}
+
+
+uint8_t load_config(esp_config * res) {
+    
+    if (SPIFFS.begin() == 0) {
+        Serial.printf("Cannot mount SPIFFS\n\r");
+        SPIFFS.format();
+        Serial.printf("Formatting\r\n");
+
+        if (SPIFFS.begin() == 0) {
+            Serial.printf("Cannot mount even after format\r\n");
+            return 0;
+        }
+    };
+        
+    if (SPIFFS.exists("/espconfig.json")) {
+        File fd = SPIFFS.open("/espconfig.json"); 
+        deserializeJson(doc, fd);
+        
+        strlcpy((char *)res->stassid, doc["stassid"] | STASSID, 20);
+        strlcpy((char *)res->stapsk, doc["stapsk"] | STAPSK, 20);
+
+        fd.close();
+    }
+    else {
+        doc["stassid"] = STASSID;
+        doc["stapsk"] = STAPSK;
+        
+        File fd = SPIFFS.open("/espconfig.json"); 
+
+
+    }
+
+    return 1;
+}
+
 void setup() {
 
     //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
+    wakeup_reason = esp_sleep_get_wakeup_cause();
 
     setup_light();
+    
 
     snprintf(tmp_url, 40, "http://%s:%d/fota/manifest", SRVNAME, SRVPORT);
     url.concat(String(tmp_url));
@@ -194,6 +280,12 @@ void setup() {
 
     Serial.printf("max_sleep_time: %u\r\n", max_sleep_time);
 
+    decode_wakeup_reason(wakeup_reason);
+    Serial.printf("wk_reason: %s\r\n", wk_reason_par);
+
+    esp_config ec;
+    load_config(&ec);
+
 }
 
 
@@ -203,6 +295,7 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     String head = "Content-Disposition: form-data; name=\"photo\"; filename=\"esp32-cam.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n";
     String head2 = "Content-Disposition: form-data; name=\"espid\"\r\n\r\n";
     String head3 = "Content-Disposition: form-data; name=\"temp\"\r\n\r\n";
+    String head4 = "Content-Disposition: form-data; name=\"wkreason\"\r\n\r\n";
 
     String start_bnd = String("\r\n--");
     start_bnd.concat(boundary);
@@ -213,17 +306,25 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     tail.concat(String("--\r\n"));
 
     uint16_t imageLen = fb->len;
-    uint16_t temp_len = strnlen((char *)temp, 7);
+    uint16_t temp_len = strnlen((char *)temp, TEMP_LEN);
+    uint16_t wkreason_len = strnlen((char *)wk_reason_par, WK_REASON_LEN);
     
     uint16_t extraLen = start_bnd.length()
         + head.length()
         + start_bnd.length()-2 //count starts after the first blank line
         + head2.length()
         + 12
+        
         + start_bnd.length()
         + head3.length()
         + temp_len
+
+        + start_bnd.length()
+        + head4.length()
+        + wkreason_len
+        
         + tail.length();
+    
     uint16_t totalLen = imageLen + extraLen;
 
     client->println("POST /sendphoto HTTP/1.1");
@@ -257,6 +358,10 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     client->print(start_bnd);
     client->print(head3);
     client->write(temp, temp_len);
+    
+    client->print(start_bnd);
+    client->print(head4);
+    client->write(wk_reason_par, wkreason_len);
 
     client->print(tail);
     return 0;
@@ -360,7 +465,6 @@ void loop() {
             Serial.print("\n----------------------");
             Serial.println("\nClosing TCP connection."); 
 
-            DynamicJsonDocument doc(1024);
             deserializeJson(doc, client);
 
             sleep_time = doc["sleeptime"] | max_sleep_time;

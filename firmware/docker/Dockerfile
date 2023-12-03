@@ -23,7 +23,7 @@ RUN mkdir -p "/root/project"
 VOLUME ["/root/project"]
 
 RUN mkdir -p "/output"
-VOLUME ["/output"]
+#VOLUME ["/output"]
 
 #COPY entrypoint.sh /
 #COPY create_manifest.py /root/
