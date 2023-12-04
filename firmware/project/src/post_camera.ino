@@ -35,10 +35,10 @@
 esp_sleep_wakeup_cause_t wakeup_reason;
 
 struct esp_config {
-    
+
     uint8_t stassid[20];
     uint8_t stapsk[20];
-    
+
     uint8_t srvname[20];
     uint16_t port;
 
@@ -54,13 +54,15 @@ char chip_id[13];
 uint32_t sleep_time = SLEEP_TIME;
 
 camera_config_t espcam_config;
+
+WiFiClient client;
 esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
 
 #define LED_STRIP_EN GPIO_NUM_14
 #define LED_ONBOARD GPIO_NUM_4
 
-#define DHT_POW_PIN 13
-#define DHT_DATA_PIN 12
+#define DHT_POW_PIN 32
+#define DHT_DATA_PIN 33
 DHT dht(DHT_POW_PIN, DHT_DATA_PIN, SENS_DHT22);
 
 #define TEMP_LEN 7
@@ -230,13 +232,15 @@ uint8_t parse_config(esp_config * cfg, File * fd) {
     strlcpy((char *)cfg->stapsk, doc["stapsk"] | STAPSK, 20);
     strlcpy((char *)cfg->srvname, doc["srvname"] | SRVNAME, 20);
     cfg->max_sleep_time = doc["max_sleep_time"] | MAX_SLEEP_TIME;
-    cfg->port = doc["srvport"] | SRVPORT;
+    cfg->port = doc["srvport"].as<uint16_t>() | SRVPORT;
 
     return 1;
 }
 
 
 uint8_t load_config(esp_config * res) {
+
+    memset(res, 0, sizeof(esp_config));
 
     if (SPIFFS.begin() == 0) {
         Serial.printf("Cannot mount SPIFFS\n\r");
@@ -274,7 +278,7 @@ uint8_t load_config(esp_config * res) {
 void setup() {
 
     Serial.begin(115200);
-    //Serial.setDebugOutput(true);
+    Serial.setDebugOutput(true);
     Serial.println();
 
     load_config(&ec);
@@ -360,7 +364,7 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
         + start_bnd.length()
         + head4.length()
         + wkreason_len
-        
+
         + start_bnd.length()
         + head5.length()
         + temp_raw_len
@@ -404,7 +408,7 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     client->print(start_bnd);
     client->print(head4);
     client->write(wk_reason_par, wkreason_len);
-    
+
     client->print(start_bnd);
     client->print(head5);
     client->write(temp_raw, temp_raw_len);
@@ -435,7 +439,7 @@ void loop() {
     dht.begin();
 
     int timeout;
-    WiFi.begin(STASSID, STAPSK);
+    WiFi.begin((char *)ec.stassid, (char *)ec.stapsk);
     timeout = millis() + 5000;
 
     while (WiFi.status() != WL_CONNECTED && millis() < timeout) {
@@ -447,11 +451,15 @@ void loop() {
     snprintf((char *)temp, 7, "%d.%d", dht.temp, dht.temp_dec);
 
     uint8_t i = 0, j = 0;
-    for(j=0; j<5; j++) {
-        i = i + snprintf((char *)&(temp_raw[i]), TEMP_RAW_LEN - i, "%d,", dht.bits[j]);
+    for(j; j<5 && i < TEMP_RAW_LEN; j++) {
+        i = i + snprintf(
+            (char *)&(temp_raw[i]),
+            TEMP_RAW_LEN - i,
+            "%d,",
+            dht.bits[j]
+            );
     }
     dht.end();
-
 
     if (WiFi.status() == WL_CONNECTED) {
 
@@ -469,9 +477,10 @@ void loop() {
             return;
         }
 
+        //Serial.printf("%s:%d\n", (char *)ec.srvname, ec.port);
+
         // Use WiFiClient class to create TCP connections
-        WiFiClient client;
-        if (client.connect(ec.srvname, ec.port)) {
+        if (client.connect((char *)ec.srvname, ec.port)) {
 
             Serial.println("Connected!");
 

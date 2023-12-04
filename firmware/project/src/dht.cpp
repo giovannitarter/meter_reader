@@ -26,12 +26,12 @@ DHT::DHT(uint8_t power_pin, uint8_t data_pin, uint8_t type) {
     this->power_pin = power_pin;
     this->type = type;
     this->lastReadTime = 0;
-    this->lastRes = DHTLIB_ERROR_NOT_INIT;    
+    this->lastRes = DHTLIB_ERROR_NOT_INIT;
 
-    this->hum = 255;
-    this->temp = 255;
-    this->hum_dec = 255;
-    this->temp_dec = 255;
+    this->hum = 127;
+    this->temp = 127;
+    this->hum_dec = 127;
+    this->temp_dec = 127;
 
 }
 
@@ -40,14 +40,14 @@ void DHT::begin() {
 
     pinMode(this->power_pin, OUTPUT);
     digitalWrite(this->power_pin, 1);
-    
-    this->booted = 0;    
+
+    this->booted = 0;
     this->lastReadTime = millis();
 }
 
 
 void DHT::end() {
-    
+
     digitalWrite(this->power_pin, 0);
 }
 
@@ -62,13 +62,13 @@ uint8_t DHT::read_dht()
         while (millis() < this->lastReadTime + SENS_BOOT_TIME);
         this->booted = 1;
     }
-    
+
     unsigned long ctime = millis();
 
     if (
-            (ctime - lastReadTime) < MIN_READ_INTERVAL 
+            (ctime - lastReadTime) < MIN_READ_INTERVAL
             && lastRes != DHTLIB_ERROR_NOT_INIT
-       ) 
+       )
     {
         return lastRes;
     }
@@ -80,7 +80,7 @@ uint8_t DHT::read_dht()
 
     uint8_t sum;
     uint16_t tmp;
-    
+
     int16_t loopCnt;
     unsigned long pmillis, pmicros;
     int i;
@@ -106,8 +106,8 @@ uint8_t DHT::read_dht()
             res = DHTLIB_ERROR_TIMEOUT;
             break;
         }
-    } 
-    
+    }
+
     //Wait that dht data_pin becomes high
     if (res == DHTLIB_OK) {
         pmillis = millis();
@@ -116,22 +116,22 @@ uint8_t DHT::read_dht()
                 res = DHTLIB_ERROR_TIMEOUT;
                 break;
             }
-        } 
+        }
     }
 
     if (res == DHTLIB_OK) {
         // READ OUTPUT - 40 BITS => 5 BYTES or TIMEOUT
         for (i=0; i<40; i++)
         {
-            
+
             pmillis = millis();
             while(digitalRead(data_pin) == LOW) {
                 if (millis() - pmillis > DTH_READ_TIMEOUT) {
                     res = DHTLIB_ERROR_TIMEOUT;
                     break;
                 }
-            } 
-    
+            }
+
             pmicros = micros();
             pmillis = millis();
             while(digitalRead(data_pin) == HIGH) {
@@ -139,33 +139,33 @@ uint8_t DHT::read_dht()
                     res = DHTLIB_ERROR_TIMEOUT;
                     break;
                 }
-            } 
+            }
 
             if ((micros() - pmicros) > 40) {
                 bits[idx] |= (1 << cnt);
             }
-            
+
             if (cnt == 0) {
                 cnt = 7;    // restart at MSB
                 idx++;      // next byte!
             }
             else cnt--;
         }
-    
-        sum = bits[0] + bits[1] + bits[2] + bits[3];  
+
+        sum = bits[0] + bits[1] + bits[2] + bits[3];
         if (bits[4] != sum) {
             lastRes = DHTLIB_ERROR_CHECKSUM;
             res = DHTLIB_ERROR_CHECKSUM;
         }
     }
-   
+
     if (res == DHTLIB_OK) {
-    
-        if (type == SENS_DHT12) { 
+
+        if (type == SENS_DHT12) {
             hum = bits[0];
-            hum_dec = bits[1]; 
+            hum_dec = bits[1];
             temp = bits[2];
-            temp_dec = bits[3]; 
+            temp_dec = bits[3];
         }
         else if (type == SENS_DHT22) {
             tmp = bits[0];
@@ -173,7 +173,7 @@ uint8_t DHT::read_dht()
             tmp += bits[1];
             hum = tmp / 10;
             hum_dec = tmp % 10;
-          
+
             tmp = bits[2];
             tmp = tmp << 8;
             tmp += bits[3];
@@ -183,10 +183,10 @@ uint8_t DHT::read_dht()
         else {
             res = DHTLIB_ERROR_CFG;
         }
- 
+
         if (
-            temp < 3 
-            || temp > 80 
+            temp < -30
+            || temp > 80
             || temp_dec < 0
             || temp_dec > 100
             || hum < 1
@@ -195,7 +195,7 @@ uint8_t DHT::read_dht()
             || hum_dec > 99
             )
         {
-            res = DHTLIB_ERROR_VALUE; 
+            res = DHTLIB_ERROR_VALUE;
         }
 
 
