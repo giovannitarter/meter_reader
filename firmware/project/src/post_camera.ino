@@ -34,18 +34,19 @@
 
 esp_sleep_wakeup_cause_t wakeup_reason;
 
-const uint16_t port = SRVPORT;
-const char * host = SRVNAME; // ip or dns
-const uint32_t max_sleep_time = MAX_SLEEP_TIME;
-
 struct esp_config {
-    uint16_t port;
-    uint8_t srvname[20];
+    
     uint8_t stassid[20];
     uint8_t stapsk[20];
+    
+    uint8_t srvname[20];
+    uint16_t port;
+
     uint32_t max_sleep_time;
 };
 typedef struct esp_config esp_config;
+
+esp_config ec;
 
 char tmp_url[40];
 String url("");
@@ -65,9 +66,13 @@ DHT dht(DHT_POW_PIN, DHT_DATA_PIN, SENS_DHT22);
 #define TEMP_LEN 7
 uint8_t temp[TEMP_LEN];
 
+#define TEMP_RAW_LEN 30
+uint8_t temp_raw[TEMP_RAW_LEN];
+
 #define WK_REASON_LEN 20
 uint8_t wk_reason_par[WK_REASON_LEN];
-            
+
+
 DynamicJsonDocument doc(1024);
 
 
@@ -138,8 +143,8 @@ void meter_sleep(uint32_t sleep_time) {
 
     sleep_time = sleep_time * 1e6;
 
-    if (sleep_time > max_sleep_time) {
-        sleep_time = max_sleep_time;
+    if (sleep_time > ec.max_sleep_time) {
+        sleep_time = ec.max_sleep_time;
     }
 
     esp_sleep_enable_timer_wakeup(sleep_time);
@@ -217,8 +222,22 @@ void decode_wakeup_reason(esp_sleep_wakeup_cause_t wakeup_reason){
 }
 
 
+uint8_t parse_config(esp_config * cfg, File * fd) {
+
+    deserializeJson(doc, *fd);
+
+    strlcpy((char *)cfg->stassid, doc["stassid"] | STASSID, 20);
+    strlcpy((char *)cfg->stapsk, doc["stapsk"] | STAPSK, 20);
+    strlcpy((char *)cfg->srvname, doc["srvname"] | SRVNAME, 20);
+    cfg->max_sleep_time = doc["max_sleep_time"] | MAX_SLEEP_TIME;
+    cfg->port = doc["srvport"] | SRVPORT;
+
+    return 1;
+}
+
+
 uint8_t load_config(esp_config * res) {
-    
+
     if (SPIFFS.begin() == 0) {
         Serial.printf("Cannot mount SPIFFS\n\r");
         SPIFFS.format();
@@ -228,63 +247,80 @@ uint8_t load_config(esp_config * res) {
             Serial.printf("Cannot mount even after format\r\n");
             return 0;
         }
+        if (! SPIFFS.exists("/espconfig.json")) {
+
+            Serial.printf("initializing config\r\n");
+
+            doc["stassid"] = STASSID;
+            doc["stapsk"] = STAPSK;
+            doc["srvname"] = SRVNAME;
+            doc["srvport"] = SRVPORT;
+            doc["max_sleep_time"] = MAX_SLEEP_TIME;
+
+            File fd = SPIFFS.open("/espconfig.json", "w");
+            serializeJson(doc, fd);
+            fd.close();
+        }
     };
-        
-    if (SPIFFS.exists("/espconfig.json")) {
-        File fd = SPIFFS.open("/espconfig.json"); 
-        deserializeJson(doc, fd);
-        
-        strlcpy((char *)res->stassid, doc["stassid"] | STASSID, 20);
-        strlcpy((char *)res->stapsk, doc["stapsk"] | STAPSK, 20);
 
-        fd.close();
-    }
-    else {
-        doc["stassid"] = STASSID;
-        doc["stapsk"] = STAPSK;
-        
-        File fd = SPIFFS.open("/espconfig.json"); 
-
-
-    }
+    File fd = SPIFFS.open("/espconfig.json");
+    parse_config(res, &fd);
+    fd.close();
 
     return 1;
 }
 
+
 void setup() {
 
+    Serial.begin(115200);
+    //Serial.setDebugOutput(true);
+    Serial.println();
+
+    load_config(&ec);
+
     //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
+
     wakeup_reason = esp_sleep_get_wakeup_cause();
 
     setup_light();
-    
 
-    snprintf(tmp_url, 40, "http://%s:%d/fota/manifest", SRVNAME, SRVPORT);
+    snprintf(
+        tmp_url,
+        40,
+        "http://%s:%d/fota/manifest",
+        ec.srvname,
+        ec.port
+        );
     url.concat(String(tmp_url));
     esp32FOTA.setManifestURL(url);
 
-    Serial.begin(115200);
-    Serial.setDebugOutput(true);
-    Serial.println();
-    
-    Serial.printf("manifest_url: %s\r\n", tmp_url);
-
     Serial.printf("VERSION: %d\r\n", CVERSION);
-    Serial.printf("STASSID: %s\r\n", STASSID);
-    Serial.printf("STAPSK : **********\r\n", STAPSK);
-    //Serial.printf("STAPSK : %s\r\n", STAPSK);
+    Serial.printf("STASSID: %s\r\n", ec.stassid);
+    Serial.printf("STAPSK : **********\r\n", ec.stapsk);
+    //Serial.printf("STAPSK : %s\r\n", ec.stapsk);
     Serial.printf("manifest_url: %s\r\n", tmp_url);
 
     get_chip_id(chip_id, 13);
     Serial.printf("ESP32 Chip ID = %s\r\n", chip_id);
 
-    Serial.printf("max_sleep_time: %u\r\n", max_sleep_time);
+    Serial.printf("ec.max_sleep_time: %u\r\n", ec.max_sleep_time);
 
     decode_wakeup_reason(wakeup_reason);
     Serial.printf("wk_reason: %s\r\n", wk_reason_par);
 
-    esp_config ec;
-    load_config(&ec);
+
+  //Serial.println("Starting SD Card");
+  //if(!SD_MMC.begin()){
+  //  Serial.println("SD Card Mount Failed");
+  //  //return;
+  //}
+  //else {
+  //  Serial.println("SD Card Mount Ok");
+  //}
+
+  //dht.begin();
+  //delay(1000);
 
 }
 
@@ -296,6 +332,7 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     String head2 = "Content-Disposition: form-data; name=\"espid\"\r\n\r\n";
     String head3 = "Content-Disposition: form-data; name=\"temp\"\r\n\r\n";
     String head4 = "Content-Disposition: form-data; name=\"wkreason\"\r\n\r\n";
+    String head5 = "Content-Disposition: form-data; name=\"rawtemp\"\r\n\r\n";
 
     String start_bnd = String("\r\n--");
     start_bnd.concat(boundary);
@@ -308,13 +345,14 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     uint16_t imageLen = fb->len;
     uint16_t temp_len = strnlen((char *)temp, TEMP_LEN);
     uint16_t wkreason_len = strnlen((char *)wk_reason_par, WK_REASON_LEN);
-    
+    uint16_t temp_raw_len = strnlen((char *)temp_raw, TEMP_RAW_LEN);
+
     uint16_t extraLen = start_bnd.length()
         + head.length()
         + start_bnd.length()-2 //count starts after the first blank line
         + head2.length()
         + 12
-        
+
         + start_bnd.length()
         + head3.length()
         + temp_len
@@ -323,8 +361,12 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
         + head4.length()
         + wkreason_len
         
+        + start_bnd.length()
+        + head5.length()
+        + temp_raw_len
+
         + tail.length();
-    
+
     uint16_t totalLen = imageLen + extraLen;
 
     client->println("POST /sendphoto HTTP/1.1");
@@ -354,14 +396,18 @@ int post_image(WiFiClient * client, const char * host, camera_fb_t * fb) {
     client->print(start_bnd);
     client->print(head2);
     client->print(chip_id);
-    
+
     client->print(start_bnd);
     client->print(head3);
     client->write(temp, temp_len);
-    
+
     client->print(start_bnd);
     client->print(head4);
     client->write(wk_reason_par, wkreason_len);
+    
+    client->print(start_bnd);
+    client->print(head5);
+    client->write(temp_raw, temp_raw_len);
 
     client->print(tail);
     return 0;
@@ -396,11 +442,16 @@ void loop() {
         delay(500);
         Serial.print(".");
     }
-    
+
     dht.read_dht();
     snprintf((char *)temp, 7, "%d.%d", dht.temp, dht.temp_dec);
-    Serial.printf("temp: %s\n", temp);
+
+    uint8_t i = 0, j = 0;
+    for(j=0; j<5; j++) {
+        i = i + snprintf((char *)&(temp_raw[i]), TEMP_RAW_LEN - i, "%d,", dht.bits[j]);
+    }
     dht.end();
+
 
     if (WiFi.status() == WL_CONNECTED) {
 
@@ -409,11 +460,9 @@ void loop() {
 
         start_time = millis();
 
-        Serial.print("Connecting to ");
-        Serial.println(host);
-
+        Serial.printf("Connecting to %s\n", ec.srvname);
         bool updatedNeeded = esp32FOTA.execHTTPcheck();
-        
+
         if (updatedNeeded)
         {
             esp32FOTA.execOTA();
@@ -422,11 +471,14 @@ void loop() {
 
         // Use WiFiClient class to create TCP connections
         WiFiClient client;
-        if (client.connect(host, port)) {
+        if (client.connect(ec.srvname, ec.port)) {
 
             Serial.println("Connected!");
 
-            post_image(&client, host, fb);
+            Serial.printf("temp: %s\n", temp);
+            Serial.printf("temp_raw: %s\n", temp_raw);
+
+            post_image(&client, (const char *)ec.srvname, fb);
             esp_camera_fb_return(fb);
 
             timeout = millis();
@@ -452,22 +504,22 @@ void loop() {
                 len = client.readBytesUntil('\n', tmp, 50);
                 tmp[len] = 0;
 
-                if (len > 0) { 
+                if (len > 0) {
                     if (len == 1 && tmp[len-1] == '\r') {
                         break;
                     }
                     tmp[len-1] = 0;
                 }
-          
+
                 Serial.printf("\n%d - %s", line, tmp);
                 line++;
             }
             Serial.print("\n----------------------");
-            Serial.println("\nClosing TCP connection."); 
+            Serial.println("\nClosing TCP connection.");
 
             deserializeJson(doc, client);
 
-            sleep_time = doc["sleeptime"] | max_sleep_time;
+            sleep_time = doc["sleeptime"] | ec.max_sleep_time;
             Serial.printf("sleeptime: %u\n", sleep_time);
             Serial.printf("ctime: %u\n", doc["ctime"].as<uint32_t>());
 
@@ -477,19 +529,19 @@ void loop() {
             //if (since_boot > 2) {
             //    sleep_time = sleep_time - since_boot;
             //}
-            
-            
+
+
             client.flush();
             client.stop();
         }
 
         else {
             Serial.println("TCP Connection failed.");
-            sleep_time = max_sleep_time;
+            sleep_time = ec.max_sleep_time;
         }
 
     }
-    
+
     Serial.printf("elapsed since boot: %d\n", millis());
 
     //WiFi.disconnect();

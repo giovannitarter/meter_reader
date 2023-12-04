@@ -29,7 +29,7 @@ DHT::DHT(uint8_t power_pin, uint8_t data_pin, uint8_t type) {
     this->lastRes = DHTLIB_ERROR_NOT_INIT;    
 
     this->hum = 255;
-	this->temp = 255;
+    this->temp = 255;
     this->hum_dec = 255;
     this->temp_dec = 255;
 
@@ -73,34 +73,33 @@ uint8_t DHT::read_dht()
         return lastRes;
     }
 
-	// BUFFER TO RECEIVE
+    // BUFFER TO RECEIVE
     char res = DHTLIB_OK;
-    uint8_t bits[5];
-	uint8_t cnt = 7;
-	uint8_t idx = 0;
+    uint8_t cnt = 7;
+    uint8_t idx = 0;
 
     uint8_t sum;
     uint16_t tmp;
-	
+    
     int16_t loopCnt;
-	unsigned long pmillis, pmicros;
+    unsigned long pmillis, pmicros;
     int i;
 
-	// EMPTY BUFFER
-	for (i=0; i< 5; i++) {
+    // EMPTY BUFFER
+    for (i=0; i< 5; i++) {
         bits[i] = 0;
     }
 
-	// REQUEST SAMPLE
-	pinMode(data_pin, OUTPUT);
-	digitalWrite(data_pin, LOW);
-	delay(18);
-	digitalWrite(data_pin, HIGH);
-	delayMicroseconds(40);
-	pinMode(data_pin, INPUT);
+    // REQUEST SAMPLE
+    pinMode(data_pin, OUTPUT);
+    digitalWrite(data_pin, LOW);
+    delay(18);
+    digitalWrite(data_pin, HIGH);
+    delayMicroseconds(40);
+    pinMode(data_pin, INPUT);
 
 
-	//Wait that dht data_pin is low
+    //Wait that dht data_pin is low
     pmillis = millis();
     while(digitalRead(data_pin) == LOW) {
         if (millis() - pmillis > DTH_READ_TIMEOUT) {
@@ -109,7 +108,7 @@ uint8_t DHT::read_dht()
         }
     } 
     
-	//Wait that dht data_pin becomes high
+    //Wait that dht data_pin becomes high
     if (res == DHTLIB_OK) {
         pmillis = millis();
         while(digitalRead(data_pin) == HIGH) {
@@ -121,9 +120,9 @@ uint8_t DHT::read_dht()
     }
 
     if (res == DHTLIB_OK) {
-	    // READ OUTPUT - 40 BITS => 5 BYTES or TIMEOUT
-	    for (i=0; i<40; i++)
-	    {
+        // READ OUTPUT - 40 BITS => 5 BYTES or TIMEOUT
+        for (i=0; i<40; i++)
+        {
             
             pmillis = millis();
             while(digitalRead(data_pin) == LOW) {
@@ -132,8 +131,8 @@ uint8_t DHT::read_dht()
                     break;
                 }
             } 
-	
-	    	pmicros = micros();
+    
+            pmicros = micros();
             pmillis = millis();
             while(digitalRead(data_pin) == HIGH) {
                 if (millis() - pmillis > DTH_READ_TIMEOUT) {
@@ -142,19 +141,19 @@ uint8_t DHT::read_dht()
                 }
             } 
 
-	    	if ((micros() - pmicros) > 40) {
+            if ((micros() - pmicros) > 40) {
                 bits[idx] |= (1 << cnt);
             }
-	    	
+            
             if (cnt == 0) {
-	    		cnt = 7;    // restart at MSB
-	    		idx++;      // next byte!
-	    	}
-	    	else cnt--;
-	    }
+                cnt = 7;    // restart at MSB
+                idx++;      // next byte!
+            }
+            else cnt--;
+        }
     
         sum = bits[0] + bits[1] + bits[2] + bits[3];  
-	    if (bits[4] != sum) {
+        if (bits[4] != sum) {
             lastRes = DHTLIB_ERROR_CHECKSUM;
             res = DHTLIB_ERROR_CHECKSUM;
         }
@@ -163,10 +162,10 @@ uint8_t DHT::read_dht()
     if (res == DHTLIB_OK) {
     
         if (type == SENS_DHT12) { 
-	        hum = bits[0];
+            hum = bits[0];
             hum_dec = bits[1]; 
-	        temp = bits[2];
-	        temp_dec = bits[3]; 
+            temp = bits[2];
+            temp_dec = bits[3]; 
         }
         else if (type == SENS_DHT22) {
             tmp = bits[0];

@@ -51,10 +51,11 @@ class DHT
         
         uint8_t type;
         
-        uint8_t hum;
-	    uint8_t temp;
-        uint8_t hum_dec;
-        uint8_t temp_dec;
+        uint8_t bits[5];
+        int8_t hum;
+	    int8_t temp;
+        int8_t hum_dec;
+        int8_t temp_dec;
 
         uint8_t lastRes;
 };

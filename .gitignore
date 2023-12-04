@@ -10,4 +10,5 @@ manifest
 firmware/project/VERSION
 firmware/project/environment
 mt_reader/environment
+mt_reader/venv*
 *environment*
