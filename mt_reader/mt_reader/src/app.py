@@ -23,7 +23,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
-#logging.getLogger('httpx').setLevel(logging.ERROR)
+logging.getLogger('httpx').setLevel(logging.ERROR)
 
 
 
@@ -187,6 +187,13 @@ class PhotoReceiver():
         wkreason = (await request.form).get("wkreason", "")
         wkreason = wkreason.strip().strip('\x00')
 
+        rawtemp = (
+            (await request.form)
+            .get("rawtemp", "")
+            .strip()
+            .strip('\x00')
+            )
+
         photo = (await request.files).get("photo")
 
         if photo:
@@ -229,6 +236,7 @@ class PhotoReceiver():
             temp = float('nan')
 
         logging.info(f"temp: {temp}")
+        logging.info(f"rawtemp: {rawtemp}")
 
         p = Point(
             time=datetime.datetime.now(),

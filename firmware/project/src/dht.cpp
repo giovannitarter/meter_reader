@@ -49,6 +49,9 @@ void DHT::begin() {
 void DHT::end() {
 
     digitalWrite(this->power_pin, 0);
+
+    pinMode(data_pin, OUTPUT);
+    digitalWrite(this->data_pin, 1);
 }
 
 // Return values:

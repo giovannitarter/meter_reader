@@ -8,13 +8,12 @@ from zoneinfo import ZoneInfo
 import logging
 #logging.basicConfig(
 #    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-#    level=logging.DEBUG,
+#    level=logging.ERROR,
 #)
 
 
 
 def last_hour_correction(db, wk_period, tag, tz=ZoneInfo("Europe/Rome")):
-    logging.info("before query")
 
     curr_time = datetime.datetime.now(tz)
     time_ref = (
@@ -35,11 +34,12 @@ def last_hour_correction(db, wk_period, tag, tz=ZoneInfo("Europe/Rome")):
 
         real_sleeptime = curr_time - l_ctime
 
-        logging.info(f"last slp: {last_sleeptime} vs real: {real_sleeptime}")
+        #logging.info(f"last slp: {last_sleeptime} vs real: {real_sleeptime}")
         correction = last_sleeptime / real_sleeptime
 
     else:
-        logging.info("first wakeup")
+        #logging.info("first wakeup")
+        pass
 
     return correction
 
@@ -54,9 +54,9 @@ def yesterday_correction(db, wk_period, tag, tz=ZoneInfo("Europe/Rome")):
     ref_max = yesterday + datetime.timedelta(seconds=wk_period)
     ref_min = yesterday - datetime.timedelta(seconds=wk_period)
 
-    logging.info(f"curr_time: {curr_time.astimezone(tz)}")
-    logging.info(f"ref_min: {ref_min.astimezone(tz)}")
-    logging.info(f"ref_max: {ref_max.astimezone(tz)}")
+    #logging.info(f"curr_time: {curr_time.astimezone(tz)}")
+    #logging.info(f"ref_min: {ref_min.astimezone(tz)}")
+    #logging.info(f"ref_max: {ref_max.astimezone(tz)}")
 
     res = [(r.time, r.fields.get("sltime"))
            for r in db.search(
@@ -69,12 +69,12 @@ def yesterday_correction(db, wk_period, tag, tz=ZoneInfo("Europe/Rome")):
     if not res:
         return 1.0
 
-    logging.info("res")
+    #logging.info("res")
     for t, sltime in res:
-        logging.info(t.astimezone(tz))
+        #logging.info(t.astimezone(tz))
         diff = abs((yesterday - t).total_seconds())
-        logging.info(f"diff: {diff}")
-    logging.info("")
+        #logging.info(f"diff: {diff}")
+    #logging.info("")
 
     res.sort(key=lambda x: abs((yesterday - x[0]).total_seconds()))
 
@@ -93,10 +93,10 @@ def yesterday_correction(db, wk_period, tag, tz=ZoneInfo("Europe/Rome")):
     correction = prev[1] / diff
 
     aft_time_localized = aft.time.astimezone(tz)
-    logging.info(f"nearest sample: {prev[0].astimezone(tz)}")
-    logging.info(f"following wk  : {aft_time_localized}")
-    logging.info(f"diff: {diff}, sleep: {prev[1]}")
-    logging.info(f"correction: {correction:.3f}")
+    #logging.info(f"nearest sample: {prev[0].astimezone(tz)}")
+    #logging.info(f"following wk  : {aft_time_localized}")
+    #logging.info(f"diff: {diff}, sleep: {prev[1]}")
+    #logging.info(f"correction: {correction:.3f}")
 
     return correction
 

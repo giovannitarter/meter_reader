@@ -61,8 +61,8 @@ esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
 #define LED_STRIP_EN GPIO_NUM_14
 #define LED_ONBOARD GPIO_NUM_4
 
-#define DHT_POW_PIN 32
-#define DHT_DATA_PIN 33
+#define DHT_POW_PIN GPIO_NUM_32
+#define DHT_DATA_PIN GPIO_NUM_33
 DHT dht(DHT_POW_PIN, DHT_DATA_PIN, SENS_DHT22);
 
 #define TEMP_LEN 7
@@ -142,6 +142,12 @@ void meter_sleep(uint32_t sleep_time) {
 
     digitalWrite(LED_STRIP_EN, HIGH);
     gpio_hold_en(LED_STRIP_EN);
+
+    digitalWrite(DHT_POW_PIN, LOW);
+    gpio_hold_en(DHT_POW_PIN);
+
+    digitalWrite(DHT_DATA_PIN, HIGH);
+    gpio_hold_en(DHT_DATA_PIN);
 
     sleep_time = sleep_time * 1e6;
 
@@ -288,6 +294,8 @@ void setup() {
     wakeup_reason = esp_sleep_get_wakeup_cause();
 
     setup_light();
+    gpio_hold_dis(DHT_POW_PIN);
+    gpio_hold_dis(DHT_DATA_PIN);
 
     snprintf(
         tmp_url,
