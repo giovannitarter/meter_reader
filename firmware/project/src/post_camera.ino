@@ -134,7 +134,7 @@ esp_err_t camera_setup() {
 //sleep time in seconds
 void meter_sleep(uint32_t sleep_time) {
 
-    Serial.println("Sleeping!");
+    Serial.println("Sleeping for %ds!", sleep_time);
     turn_off_light();
 
     digitalWrite(LED_ONBOARD, LOW);
@@ -441,7 +441,8 @@ void loop() {
 
     if(!fb) {
         Serial.println("Camera capture failed");
-        meter_sleep(10);
+        esp_camera_deinit();
+        meter_sleep(45);
     }
 
     dht.begin();
@@ -539,14 +540,6 @@ void loop() {
             sleep_time = doc["sleeptime"] | ec.max_sleep_time;
             Serial.printf("sleeptime: %u\n", sleep_time);
             Serial.printf("ctime: %u\n", doc["ctime"].as<uint32_t>());
-
-            ////optimization on boottime, parked until rtc osc skew
-            ///is not corrected
-            //int32_t since_boot = millis() / 1000;
-            //if (since_boot > 2) {
-            //    sleep_time = sleep_time - since_boot;
-            //}
-
 
             client.flush();
             client.stop();

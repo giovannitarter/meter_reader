@@ -38,8 +38,8 @@ DHT::DHT(uint8_t power_pin, uint8_t data_pin, uint8_t type) {
 
 void DHT::begin() {
 
-    pinMode(this->power_pin, OUTPUT);
-    digitalWrite(this->power_pin, 1);
+    //pinMode(this->power_pin, OUTPUT);
+    //digitalWrite(this->power_pin, 1);
 
     this->booted = 0;
     this->lastReadTime = millis();
@@ -48,7 +48,7 @@ void DHT::begin() {
 
 void DHT::end() {
 
-    digitalWrite(this->power_pin, 0);
+    //digitalWrite(this->power_pin, 0);
 
     pinMode(data_pin, OUTPUT);
     digitalWrite(this->data_pin, 1);
