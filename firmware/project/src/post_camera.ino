@@ -510,7 +510,7 @@ void loop() {
             {
 
                 if (i % 20 == 0) {
-                    Serial.print("\n\r");
+                    Serial.print("\r\n");
                 }
 
                 Serial.print(".");
@@ -518,11 +518,11 @@ void loop() {
 
                 i++;
             }
-            Serial.print("\n\r");
+            Serial.print("\r\n");
             Serial.printf("Reply took %d\n", millis() - timeout);
 
-            Serial.printf("\nHttp reply (%d bytes):\n", client.available());
-            Serial.print("\n----------------------\n");
+            Serial.printf("\r\nHttp reply (%d bytes):\r\n", client.available());
+            Serial.print("\r\n----------------------\r\n");
             uint8_t tmp[51], len, line;
             tmp[0] = 0;
             tmp[50] = 0;
@@ -540,17 +540,17 @@ void loop() {
                     tmp[len-1] = 0;
                 }
 
-                Serial.printf("\n%d - %s", line, tmp);
+                Serial.printf("\r\n%d - %s", line, tmp);
                 line++;
             }
-            Serial.print("\n----------------------");
-            Serial.println("\nClosing TCP connection.");
+            Serial.print("\r\n----------------------");
+            Serial.println("\r\nClosing TCP connection.");
 
             deserializeJson(doc, client);
 
             sleep_time = doc["sleeptime"] | ec.max_sleep_time;
-            Serial.printf("sleeptime: %u\n", sleep_time);
-            Serial.printf("ctime: %u\n", doc["ctime"].as<uint32_t>());
+            Serial.printf("sleeptime: %u\r\n", sleep_time);
+            Serial.printf("ctime: %u\r\n", doc["ctime"].as<uint32_t>());
 
             client.flush();
             client.stop();
@@ -563,7 +563,7 @@ void loop() {
 
     }
 
-    Serial.printf("elapsed since boot: %d\n", millis());
+    Serial.printf("elapsed since boot: %d\r\n", millis());
 
     //WiFi.disconnect();
     meter_sleep(sleep_time);
