@@ -134,7 +134,6 @@ esp_err_t camera_setup() {
 //sleep time in seconds
 void meter_sleep(uint32_t sleep_time) {
 
-    Serial.println("Sleeping for %ds!", sleep_time);
     turn_off_light();
 
     digitalWrite(LED_ONBOARD, LOW);
@@ -143,11 +142,14 @@ void meter_sleep(uint32_t sleep_time) {
     digitalWrite(LED_STRIP_EN, HIGH);
     gpio_hold_en(LED_STRIP_EN);
 
-    digitalWrite(DHT_POW_PIN, LOW);
-    gpio_hold_en(DHT_POW_PIN);
+    //digitalWrite(DHT_POW_PIN, LOW);
+    //gpio_hold_en(DHT_POW_PIN);
 
     digitalWrite(DHT_DATA_PIN, HIGH);
     gpio_hold_en(DHT_DATA_PIN);
+
+    Serial.printf("Sleeping for %u s!\n", sleep_time);
+    Serial.flush();
 
     sleep_time = sleep_time * 1e6;
 
@@ -455,6 +457,7 @@ void loop() {
         delay(500);
         Serial.print(".");
     }
+    Serial.printf("\n\r");
 
     dht.read_dht();
     snprintf((char *)temp, 7, "%d.%d", dht.temp, dht.temp_dec);
@@ -468,11 +471,12 @@ void loop() {
             dht.bits[j]
             );
     }
+    Serial.printf("temp: %s\n", temp);
+    Serial.printf("raw temp: %s\n\r", temp_raw);
     dht.end();
 
     if (WiFi.status() == WL_CONNECTED) {
 
-        Serial.println("");
         Serial.println("WiFi connected");
 
         start_time = millis();
@@ -493,21 +497,28 @@ void loop() {
 
             Serial.println("Connected!");
 
-            Serial.printf("temp: %s\n", temp);
-            Serial.printf("temp_raw: %s\n", temp_raw);
-
             post_image(&client, (const char *)ec.srvname, fb);
             esp_camera_fb_return(fb);
+            esp_camera_deinit();
 
             timeout = millis();
             //wait for the server's reply to become available
 
             Serial.print("Waiting reply");
+            int i = 0;
             while (!client.available() && millis() < timeout + 10000)
             {
+
+                if (i % 20 == 0) {
+                    Serial.print("\n\r");
+                }
+
                 Serial.print(".");
                 delay(50);
+
+                i++;
             }
+            Serial.print("\n\r");
             Serial.printf("Reply took %d\n", millis() - timeout);
 
             Serial.printf("\nHttp reply (%d bytes):\n", client.available());

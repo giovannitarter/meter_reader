@@ -192,6 +192,7 @@ class PhotoReceiver():
             .get("rawtemp", "")
             .strip()
             .strip('\x00')
+            .strip(',')
             )
 
         photo = (await request.files).get("photo")
