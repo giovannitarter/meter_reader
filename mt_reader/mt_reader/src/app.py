@@ -211,6 +211,13 @@ class PhotoReceiver():
         correction = corrections.yesterday_correction(
                 self.db, wakeup_period, espid
                 )
+
+        max_corr = 0.2
+        if correction > 1 + max_corr:
+            correction = 1 + max_corr
+        elif correction < 1 - max_corr:
+            correction = 1 - max_corr
+
         logging.info(f"correction: {correction}")
 
         if sleep_time < wakeup_period * 0.05:

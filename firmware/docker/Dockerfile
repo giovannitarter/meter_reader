@@ -12,11 +12,11 @@ RUN python3 get-platformio.py
 
 ENV PATH=/root/.platformio/penv/bin:$PATH
 RUN pio pkg install --global --platform espressif32
-RUN pio pkg install --global --tool framework-arduinoespressif32
-RUN pio pkg install --global --tool tool-scons
 RUN pio pkg install --global --tool platformio/tool-mkspiffs
 RUN pio pkg install --global --tool tool-mklittlefs
 RUN pio pkg install --global --tool tool-mkfatfs
+RUN pio pkg install --global --tool framework-arduinoespressif32@3.20011.230801
+RUN pio pkg install --global --tool tool-scons@4.40502.0
 
 
 RUN mkdir -p "/root/project"

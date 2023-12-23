@@ -93,10 +93,14 @@ def yesterday_correction(db, wk_period, tag, tz=ZoneInfo("Europe/Rome")):
     correction = prev[1] / diff
 
     aft_time_localized = aft.time.astimezone(tz)
+
     #logging.info(f"nearest sample: {prev[0].astimezone(tz)}")
     #logging.info(f"following wk  : {aft_time_localized}")
     #logging.info(f"diff: {diff}, sleep: {prev[1]}")
     #logging.info(f"correction: {correction:.3f}")
+
+    if diff < wk_period * 0.8 or diff > wk_period * 1.2:
+        return 1.0
 
     return correction
 
