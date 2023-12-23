@@ -65,7 +65,7 @@ esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
 #define DHT_DATA_PIN GPIO_NUM_33
 DHT dht(DHT_POW_PIN, DHT_DATA_PIN, SENS_DHT22);
 
-#define TEMP_LEN 7
+#define TEMP_LEN 20
 uint8_t temp[TEMP_LEN];
 
 #define TEMP_RAW_LEN 30
@@ -289,6 +289,10 @@ void setup() {
     Serial.setDebugOutput(true);
     Serial.println();
 
+    memset(temp, 0, TEMP_LEN);
+    memset(temp_raw, 0, TEMP_RAW_LEN);
+    memset(wk_reason_par, 0, WK_REASON_LEN);
+
     load_config(&ec);
 
     //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
@@ -460,7 +464,7 @@ void loop() {
     Serial.printf("\n\r");
 
     dht.read_dht();
-    snprintf((char *)temp, 7, "%d.%d", dht.temp, dht.temp_dec);
+    snprintf((char *)temp, TEMP_LEN, "%d.%d", dht.temp, dht.temp_dec);
 
     uint8_t i = 0, j = 0;
     for(j; j<5 && i < TEMP_RAW_LEN; j++) {
