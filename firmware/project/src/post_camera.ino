@@ -8,7 +8,11 @@
 #include "driver/rtc_io.h"
 #include "WiFi.h"
 #include <esp32fota.h>
-#include "dht.h"
+
+//#include "dht.h"
+#include "dht_reader.h"
+
+DHT_reader dht = DHT_reader();
 
 #include "parameters.h"
 
@@ -63,7 +67,8 @@ esp32FOTA esp32FOTA("esp32-fota-http", CVERSION, false);
 
 #define DHT_POW_PIN GPIO_NUM_32
 #define DHT_DATA_PIN GPIO_NUM_33
-DHT dht(DHT_POW_PIN, DHT_DATA_PIN, SENS_DHT22);
+//DHT dht(DHT_POW_PIN, DHT_DATA_PIN, SENS_DHT22);
+
 
 #define TEMP_LEN 20
 uint8_t temp[TEMP_LEN];
@@ -463,21 +468,24 @@ void loop() {
     }
     Serial.printf("\n\r");
 
-    dht.read_dht();
-    snprintf((char *)temp, TEMP_LEN, "%d.%d", dht.temp, dht.temp_dec);
+    //dht.read_dht();
+    //snprintf((char *)temp, TEMP_LEN, "%d.%d", dht.temp, dht.temp_dec);
 
-    uint8_t i = 0, j = 0;
-    for(j; j<5 && i < TEMP_RAW_LEN; j++) {
-        i = i + snprintf(
-            (char *)&(temp_raw[i]),
-            TEMP_RAW_LEN - i,
-            "%d,",
-            dht.bits[j]
-            );
-    }
+
+    snprintf((char *)temp, TEMP_LEN, "%.2f", dht.read());
+
+    //uint8_t i = 0, j = 0;
+    //for(j; j<5 && i < TEMP_RAW_LEN; j++) {
+    //    i = i + snprintf(
+    //        (char *)&(temp_raw[i]),
+    //        TEMP_RAW_LEN - i,
+    //        "%d,",
+    //        dht.bits[j]
+    //        );
+    //}
     Serial.printf("temp: %s\n", temp);
     Serial.printf("raw temp: %s\n\r", temp_raw);
-    dht.end();
+    //dht.end();
 
     if (WiFi.status() == WL_CONNECTED) {
 

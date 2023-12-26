@@ -18,6 +18,8 @@
 // + added error codes
 //
 
+
+/*
 #include "dht.h"
 
 
@@ -83,6 +85,7 @@ uint8_t DHT::read_dht()
 
     uint8_t sum;
     uint16_t tmp;
+    int16_t tmp2;
 
     int16_t loopCnt;
     unsigned long pmillis, pmicros;
@@ -171,6 +174,9 @@ uint8_t DHT::read_dht()
             temp_dec = bits[3];
         }
         else if (type == SENS_DHT22) {
+
+            tmp2 = (int16_t)(bits[2]<<8 | bits[3]) * 0.1;
+
             tmp = bits[0];
             tmp = tmp << 8;
             tmp += bits[1];
@@ -208,3 +214,4 @@ uint8_t DHT::read_dht()
     lastRes = res;
     return res;
 }
+*/
