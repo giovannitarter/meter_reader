@@ -14,7 +14,7 @@
 //
 
 
-/*
+
 
 #ifndef dht_h
 #define dht_h
@@ -66,7 +66,3 @@ class DHT
 
 
 #endif
-//
-// END OF FILE
-//
-*/

@@ -18,8 +18,6 @@
 // + added error codes
 //
 
-
-/*
 #include "dht.h"
 
 
@@ -214,4 +212,3 @@ uint8_t DHT::read_dht()
     lastRes = res;
     return res;
 }
-*/
