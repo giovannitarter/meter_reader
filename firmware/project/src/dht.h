@@ -32,7 +32,7 @@
 #define SENS_DHT12 5
 
 #define MIN_READ_INTERVAL 2500 //ms
-#define SENS_BOOT_TIME 1000 //ms
+#define SENS_BOOT_TIME 2000 //ms
 
 #define DTH_READ_TIMEOUT 5 //ms
 

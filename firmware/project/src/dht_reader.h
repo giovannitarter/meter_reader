@@ -10,6 +10,7 @@ class DHT_reader {
         DHT_reader();
         void begin();
         float read();
+        int8_t get_raw(uint8_t * buff, size_t len);
 
 };
 

@@ -25,6 +25,11 @@ float DHT_reader::read() {
     return event.temperature;
 }
 
+
+int8_t DHT_reader::get_raw(uint8_t * buff, size_t len) {
+    return 1;
+};
+
 #else
 
 #include "dht.h"
@@ -51,6 +56,45 @@ float DHT_reader::read() {
     }
 
     return res;
+}
+
+
+int8_t DHT_reader::get_raw(uint8_t * buff, size_t len) {
+
+    uint8_t i = 0, j = 0;
+
+    //print last res
+    i += snprintf(
+        (char *)&(buff[i]),
+        len - i,
+        "%d ",
+        _dht.lastRes
+    );
+
+    //print bytes received from sensor
+    for(j; j<5 && i < len; j++) {
+        i += snprintf(
+                (char *)&(buff[i]),
+                len - i,
+                "%d,",
+                _dht.bits[j]
+            );
+    }
+
+    //check if we exceeded len
+    if (i < len) {
+        //remove last ","
+        buff[i-1] = ' ';
+
+        //make sure char array is terminated
+        buff[len-1] = '\0';
+    }
+    else {
+        return 0;
+    }
+
+
+    return 1;
 }
 
 #endif

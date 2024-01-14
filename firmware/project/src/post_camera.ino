@@ -471,20 +471,11 @@ void loop() {
     //dht.read_dht();
     //snprintf((char *)temp, TEMP_LEN, "%d.%d", dht.temp, dht.temp_dec);
 
-
     snprintf((char *)temp, TEMP_LEN, "%.2f", dht.read());
+    dht.get_raw(temp_raw, TEMP_RAW_LEN);
 
-    //uint8_t i = 0, j = 0;
-    //for(j; j<5 && i < TEMP_RAW_LEN; j++) {
-    //    i = i + snprintf(
-    //        (char *)&(temp_raw[i]),
-    //        TEMP_RAW_LEN - i,
-    //        "%d,",
-    //        dht.bits[j]
-    //        );
-    //}
-    Serial.printf("temp: %s\n", temp);
-    Serial.printf("raw temp: %s\n\r", temp_raw);
+    Serial.printf("temp: \"%s\"\n\r", temp);
+    Serial.printf("raw temp: \"%s\"\n\r", temp_raw);
     //dht.end();
 
     if (WiFi.status() == WL_CONNECTED) {
