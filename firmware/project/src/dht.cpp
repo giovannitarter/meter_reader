@@ -196,10 +196,10 @@ uint8_t DHT::read_dht()
             || temp > 80
             || temp_dec < 0
             || temp_dec > 100
-            || hum < 1
-            || hum > 100
-            || hum_dec < 0
-            || hum_dec > 99
+        //    || hum < 1
+        //    || hum > 100
+        //    || hum_dec < 0
+        //    || hum_dec > 99
             )
         {
             res = DHTLIB_ERROR_VALUE;
