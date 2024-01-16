@@ -15,7 +15,7 @@ RUN pio pkg install --global --platform espressif32
 RUN pio pkg install --global --tool platformio/tool-mkspiffs
 RUN pio pkg install --global --tool tool-mklittlefs
 RUN pio pkg install --global --tool tool-mkfatfs
-RUN pio pkg install --global --tool framework-arduinoespressif32@3.20014.0
+RUN pio pkg install --global --tool framework-arduinoespressif32@3.20014.231204
 RUN pio pkg install --global --tool tool-scons@4.40600.0
 
 RUN mkdir -p "/root/project"

@@ -170,6 +170,12 @@ uint8_t DHT::read_dht()
             hum_dec = bits[1];
             temp = bits[2];
             temp_dec = bits[3];
+            
+            if (temp_dec & 0b10000000) {
+                temp = -temp;
+            }
+            temp_dec &= 0b01111111;
+
         }
         else if (type == SENS_DHT22) {
 

@@ -251,6 +251,7 @@ class PhotoReceiver():
             tags={
                 "espid": espid,
                 "wkreason": wkreason,
+                "rawtemp" : rawtemp,
                 },
             fields={
                 "sltime": corr_sleep_time,
